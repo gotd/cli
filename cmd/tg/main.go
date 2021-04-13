@@ -12,6 +12,7 @@ import (
 	"os/signal"
 	"path/filepath"
 
+	"github.com/gabriel-vasile/mimetype"
 	"github.com/schollz/progressbar/v3"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
@@ -181,8 +182,8 @@ func main() {
 				},
 				Action: func(c *cli.Context) error {
 					return run(c.Context, func(ctx context.Context, api *tg.Client) error {
-						name := c.Args().First()
-						if name == "" {
+						fileName := c.Args().First()
+						if fileName == "" {
 							return errors.New("no file name provided")
 						}
 						f, err := os.Open(c.Args().First())
@@ -192,6 +193,14 @@ func main() {
 						defer func() {
 							_ = f.Close()
 						}()
+
+						mime, err := mimetype.DetectReader(f)
+						if err != nil {
+							return err
+						}
+						if _, err := f.Seek(0, io.SeekStart); err != nil {
+							return err
+						}
 
 						var target tg.InputPeerClass = &tg.InputPeerSelf{}
 						if targetDomain := c.String("peer"); targetDomain != "" {
@@ -212,19 +221,24 @@ func main() {
 						}
 
 						p := progressbar.DefaultBytes(s.Size(), "upload")
-
 						u := uploader.NewUploader(api)
-
-						upload := uploader.NewUpload(filepath.Base(f.Name()), io.TeeReader(f, p), s.Size())
+						upload := uploader.NewUpload(
+							filepath.Base(f.Name()), io.TeeReader(f, p), s.Size(),
+						)
 
 						fileInput, err := u.Upload(ctx, upload)
 						if err != nil {
 							return err
 						}
 
+						name := styling.Plain(f.Name())
 						if _, err := message.NewSender(api).
 							To(target).
-							File(ctx, fileInput, styling.Plain(f.Name())); err != nil {
+							Media(ctx,
+								message.File(fileInput, name).
+									MIME(mime.String()).
+									Filename(filepath.Base(f.Name())),
+							); err != nil {
 							return err
 						}
 
