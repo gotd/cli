@@ -179,6 +179,12 @@ func main() {
 						Aliases: []string{"p", "target"},
 						Usage:   "Peer to write (e.g. channel name or username)",
 					},
+					&cli.IntFlag{
+						Name:    "threads",
+						Aliases: []string{"j"},
+						Value:   1,
+						Usage:   "Concurrency",
+					},
 				},
 				Action: func(c *cli.Context) error {
 					return run(c.Context, func(ctx context.Context, api *tg.Client) error {
@@ -221,7 +227,7 @@ func main() {
 						}
 
 						p := progressbar.DefaultBytes(s.Size(), "upload")
-						u := uploader.NewUploader(api)
+						u := uploader.NewUploader(api).WithThreads(c.Int("threads"))
 						upload := uploader.NewUpload(
 							filepath.Base(f.Name()), io.TeeReader(f, p), s.Size(),
 						)
