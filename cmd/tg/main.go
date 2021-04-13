@@ -41,15 +41,6 @@ func defaultConfigPath() string {
 	return filepath.Join(dir, "gotd", "gotd.cli.yaml")
 }
 
-type proxyFile struct {
-	uploader.File
-	reader io.Reader
-}
-
-func (f proxyFile) Read(p []byte) (n int, err error) {
-	return f.reader.Read(p)
-}
-
 func main() {
 	var (
 		cfg Config
