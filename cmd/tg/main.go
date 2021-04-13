@@ -17,16 +17,13 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 
-	"github.com/gotd/td/telegram/message"
-	"github.com/gotd/td/telegram/message/styling"
-
-	"github.com/gotd/td/telegram/message/peer"
-
-	"github.com/gotd/td/telegram/uploader"
-	"github.com/gotd/td/tg"
-
 	"github.com/gotd/td/session"
 	"github.com/gotd/td/telegram"
+	"github.com/gotd/td/telegram/message"
+	"github.com/gotd/td/telegram/message/peer"
+	"github.com/gotd/td/telegram/message/styling"
+	"github.com/gotd/td/telegram/uploader"
+	"github.com/gotd/td/tg"
 )
 
 type Config struct {
