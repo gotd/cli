@@ -7,12 +7,14 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/gotd/td/session"
-	"github.com/gotd/td/telegram"
-	"github.com/gotd/td/tg"
+	"github.com/gotd/td/telegram/dcs"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
+
+	"github.com/gotd/td/session"
+	"github.com/gotd/td/telegram"
+	"github.com/gotd/td/tg"
 )
 
 type app struct {
@@ -87,6 +89,9 @@ func (p *app) Before(c *cli.Context) error {
 	p.opts.Logger = p.log.Named("tg")
 	p.opts.SessionStorage = &session.FileStorage{
 		Path: filepath.Join(filepath.Dir(cfgPath), sessionName),
+	}
+	if c.Bool("test") {
+		p.opts.DCList = dcs.StagingDCs()
 	}
 
 	return nil

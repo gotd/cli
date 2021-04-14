@@ -37,6 +37,11 @@ func main() {
 				Value:   defaultConfigPath(),
 				Usage:   "Config to use",
 			},
+			&cli.BoolFlag{
+				Name:    "test",
+				Aliases: []string{"staging"},
+				Usage:   "Sets flag to connect to Telegram test DC.",
+			},
 		},
 
 		Commands: []*cli.Command{

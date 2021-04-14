@@ -12,15 +12,16 @@ import (
 	"time"
 
 	"github.com/gabriel-vasile/mimetype"
+	"github.com/schollz/progressbar/v3"
+	"github.com/urfave/cli/v2"
+	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/gotd/td/clock"
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/telegram/message/styling"
 	"github.com/gotd/td/telegram/uploader"
 	"github.com/gotd/td/tg"
-	"github.com/schollz/progressbar/v3"
-	"github.com/urfave/cli/v2"
-	"go.uber.org/zap"
-	"golang.org/x/sync/errgroup"
 )
 
 func (p *app) uploadFlags() []cli.Flag {

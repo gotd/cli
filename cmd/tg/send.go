@@ -4,10 +4,11 @@ import (
 	"context"
 	"time"
 
+	"github.com/urfave/cli/v2"
+
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/telegram/message/html"
 	"github.com/gotd/td/tg"
-	"github.com/urfave/cli/v2"
 )
 
 func (p *app) sendFlags() []cli.Flag {
