@@ -17,19 +17,25 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/gotd/td/telegram/message/styling"
+
 	"github.com/gotd/td/clock"
 	"github.com/gotd/td/telegram/message"
-	"github.com/gotd/td/telegram/message/styling"
 	"github.com/gotd/td/telegram/uploader"
 	"github.com/gotd/td/tg"
 )
 
 func (p *app) uploadFlags() []cli.Flag {
-	return []cli.Flag{
+	return append([]cli.Flag{
 		&cli.StringFlag{
 			Name:    "peer",
 			Aliases: []string{"p", "target"},
 			Usage:   "Peer to write (e.g. channel name or username, phone number or deep link).",
+		},
+		&cli.StringFlag{
+			Name:    "message",
+			Aliases: []string{"m", "msg"},
+			Usage:   "Text message to send with file.",
 		},
 		&cli.StringFlag{
 			Name:        "filename",
@@ -51,7 +57,7 @@ func (p *app) uploadFlags() []cli.Flag {
 			Value:   1,
 			Usage:   "Concurrency",
 		},
-	}
+	}, messageFlags()...)
 }
 
 func detectMIME(f io.ReadSeeker) (*mimetype.MIME, error) {
@@ -67,8 +73,13 @@ func detectMIME(f io.ReadSeeker) (*mimetype.MIME, error) {
 	return mime, nil
 }
 
-func prepareFile(c *cli.Context, fileInput tg.InputFileClass, fileName, mime string) message.MediaOption {
-	file := message.UploadedDocument(fileInput, styling.Plain(fileName))
+func prepareFile(
+	c *cli.Context,
+	fileInput tg.InputFileClass,
+	option []styling.StyledTextOption,
+	fileName, mime string,
+) message.MediaOption {
+	file := message.UploadedDocument(fileInput, option...)
 	if c.IsSet("filename") {
 		if userFileName := c.String("filename"); userFileName != "" {
 			file = file.Filename(userFileName)
@@ -111,9 +122,38 @@ func prepareFile(c *cli.Context, fileInput tg.InputFileClass, fileName, mime str
 	}
 }
 
-func (p *app) uploadCmd(c *cli.Context) error {
-	log := p.log
+func (p *app) updateStatus(
+	ctx context.Context,
+	done chan struct{},
+	builder *message.RequestBuilder,
+	bar *progressbar.ProgressBar,
+) error {
+	sendProgress := func() {
+		a := builder.TypingAction()
+		percent := int(bar.State().CurrentPercent * 100)
+		if err := a.UploadDocument(ctx, percent); err != nil && !errors.Is(err, context.Canceled) {
+			p.log.Error("Action failed", zap.Error(err))
+		}
+	}
 
+	// Initial progress.
+	sendProgress()
+
+	ticker := clock.System.Ticker(5 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C():
+			sendProgress()
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-done:
+			return nil
+		}
+	}
+}
+
+func (p *app) uploadCmd(c *cli.Context) error {
 	return p.run(c.Context, func(ctx context.Context, api *tg.Client) error {
 		arg := c.Args().First()
 		if arg == "" {
@@ -124,18 +164,19 @@ func (p *app) uploadCmd(c *cli.Context) error {
 			WithThreads(c.Int("threads")).
 			WithPartSize(uploader.MaximumPartSize)
 		sender := message.NewSender(api).WithUploader(upld)
+
 		builder := sender.Self()
-		if to := c.String("peer"); to != "" {
-			builder = sender.Resolve(to)
+		if targetDomain := c.String("peer"); targetDomain != "" {
+			builder = sender.Resolve(targetDomain)
 		}
 
 		return filepath.Walk(arg, func(path string, info fs.FileInfo, err error) error {
 			// Stop if got error, skip if current file is directory.
-			if err != nil || info.IsDir() {
+			if info.IsDir() || err != nil {
 				return err
 			}
 
-			f, err := os.Open(arg)
+			f, err := os.Open(filepath.Clean(path))
 			if err != nil {
 				return fmt.Errorf("open %q: %w", path, err)
 			}
@@ -150,35 +191,17 @@ func (p *app) uploadCmd(c *cli.Context) error {
 
 			fileName := filepath.Base(path)
 			bar := progressbar.DefaultBytes(info.Size(), "upload "+fileName)
-			upload := uploader.NewUpload(fileName, io.TeeReader(f, bar), info.Size())
+
+			uploadFileName := fileName
+			if f := c.String("filename"); f != "" {
+				uploadFileName = c.String("filename")
+			}
+			upload := uploader.NewUpload(uploadFileName, io.TeeReader(f, bar), info.Size())
 
 			g, ctx := errgroup.WithContext(ctx)
 			done := make(chan struct{})
-
 			g.Go(func() error {
-				sendProgress := func() {
-					a := builder.TypingAction()
-					percent := int(bar.State().CurrentPercent * 100)
-					if err := a.UploadDocument(ctx, percent); err != nil && !errors.Is(err, context.Canceled) {
-						log.Error("Action failed", zap.Error(err))
-					}
-				}
-
-				// Initial progress.
-				sendProgress()
-
-				ticker := clock.System.Ticker(5 * time.Second)
-				defer ticker.Stop()
-				for {
-					select {
-					case <-ticker.C():
-						sendProgress()
-					case <-ctx.Done():
-						return ctx.Err()
-					case <-done:
-						return nil
-					}
-				}
+				return p.updateStatus(ctx, done, builder, bar)
 			})
 
 			g.Go(func() error {
@@ -189,7 +212,8 @@ func (p *app) uploadCmd(c *cli.Context) error {
 					return fmt.Errorf("upload %q: %w", path, err)
 				}
 
-				if _, err := builder.Media(ctx, prepareFile(c, fileInput, fileName, m.String())); err != nil {
+				b, options := applyMessageFlags(c, builder, c.String("message"))
+				if _, err := b.Media(ctx, prepareFile(c, fileInput, options, fileName, m.String())); err != nil {
 					return fmt.Errorf("send %q: %w", path, err)
 				}
 

@@ -1,0 +1,108 @@
+linters-settings:
+  govet:
+    check-shadowing: true
+  gocyclo:
+    min-complexity: 15
+  maligned:
+    suggest-new: true
+  dupl:
+    threshold: 120
+  goconst:
+    min-len: 2
+    min-occurrences: 3
+  misspell:
+    locale: US
+  lll:
+    line-length: 140
+  goimports:
+    local-prefixes: github.com/gotd/
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      - hugeParam
+      - rangeValCopy
+      - exitAfterDefer
+      - whyNoLint
+      - singleCaseSwitch
+      - commentedOutCode
+
+linters:
+  disable-all: true
+  enable:
+    - deadcode
+    - depguard
+    - dogsled
+    - dupl
+    - errcheck
+    - gochecknoinits
+    - goconst
+    - gocritic
+    - gofmt
+    - goimports
+    - golint
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - lll
+    - misspell
+    - nakedret
+    - staticcheck
+    - structcheck
+    - stylecheck
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - varcheck
+    - whitespace
+    - gochecknoglobals
+    - gocognit
+
+  # Do not enable:
+  # - wsl       (too opinionated about newlines)
+  # - godox     (todos are OK)
+  # - bodyclose (false positives on helper functions)
+  # - prealloc  (not worth it in scope of this project)
+  # - maligned  (same as prealloc)
+  # - funlen    (gocyclo is enough)
+
+issues:
+  exclude-use-default: false
+  exclude-rules:
+    - linters: [gocritic]
+      text: "commentedOutCode"
+      source: "SHA1"
+
+    # Allow embed globals
+    - source: "embed\\.FS"
+      linters: [gochecknoglobals]
+
+    # Exclude go:generate from lll
+    - source: "//go:generate"
+      linters: [lll]
+
+    # Disable linters that are annoying in tests.
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - dupl
+        - gosec
+        - funlen
+        - goconst
+        - gocognit
+        - scopelint
+        - lll
+        - gochecknoglobals
+    # Ignore shadowing of err.
+    - linters: [govet]
+      text: 'declaration of "(err|ctx|log)"'
+
+    - text: "should have.+comment"
+      linters: [golint]

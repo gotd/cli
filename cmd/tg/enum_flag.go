@@ -25,6 +25,10 @@ func (e *EnumFlag) Apply(set *flag.FlagSet) error {
 		return err
 	}
 
+	if !e.HasBeenSet {
+		return nil
+	}
+
 	for i := range e.Allowed {
 		if e.Value == e.Allowed[i] {
 			return nil

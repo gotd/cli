@@ -2,15 +2,19 @@ package main
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto/md5" // #nosec
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/gotd/td/telegram/dcs"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
+
+	"github.com/gotd/td/telegram/dcs"
+	"github.com/gotd/td/telegram/invokers"
 
 	"github.com/gotd/td/session"
 	"github.com/gotd/td/telegram"
@@ -42,20 +46,36 @@ func newApp() *app {
 }
 
 func (p *app) run(ctx context.Context, f func(ctx context.Context, api *tg.Client) error) error {
-	c := telegram.NewClient(p.cfg.AppID, p.cfg.AppHash, p.opts)
+	client := telegram.NewClient(p.cfg.AppID, p.cfg.AppHash, p.opts)
 
-	return c.Run(ctx, func(ctx context.Context) error {
-		s, err := c.AuthStatus(ctx)
+	return client.Run(ctx, func(ctx context.Context) error {
+		s, err := client.AuthStatus(ctx)
 		if err != nil {
 			return fmt.Errorf("check auth status: %w", err)
 		}
 		if !s.Authorized {
-			if _, err := c.AuthBot(ctx, p.cfg.BotToken); err != nil {
+			if _, err := client.AuthBot(ctx, p.cfg.BotToken); err != nil {
 				return fmt.Errorf("check auth status: %w", err)
 			}
 		}
 
-		return f(ctx, tg.NewClient(c))
+		invoker := invokers.NewWaiter(client)
+		raw := tg.NewClient(invoker)
+
+		ctx, cancel := context.WithCancel(ctx)
+		g, ctx := errgroup.WithContext(ctx)
+		g.Go(func() error {
+			return invoker.Run(ctx)
+		})
+		g.Go(func() error {
+			defer cancel()
+			return f(ctx, raw)
+		})
+
+		if err := g.Wait(); !errors.Is(err, context.Canceled) {
+			return err
+		}
+		return nil
 	})
 }
 
@@ -85,7 +105,7 @@ func (p *app) Before(c *cli.Context) error {
 
 	// Default to same directory (near with config).
 	// Probably there is better way to handle this.
-	sessionName := fmt.Sprintf("gotd.session.%x.json", md5.Sum([]byte(p.cfg.BotToken)))
+	sessionName := fmt.Sprintf("gotd.session.%x.json", md5.Sum([]byte(p.cfg.BotToken))) // #nosec
 	p.opts.Logger = p.log.Named("tg")
 	p.opts.SessionStorage = &session.FileStorage{
 		Path: filepath.Join(filepath.Dir(cfgPath), sessionName),
