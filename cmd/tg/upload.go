@@ -30,23 +30,23 @@ func (p *app) uploadFlags() []cli.Flag {
 		&cli.StringFlag{
 			Name:    "peer",
 			Aliases: []string{"p", "target"},
-			Usage:   "Peer to write (e.g. channel name or username, phone number or deep link).",
+			Usage:   "peer to write (channel name, username, phone number or deep link)",
 		},
 		&cli.StringFlag{
 			Name:    "message",
 			Aliases: []string{"m", "msg"},
-			Usage:   "Text message to send with file.",
+			Usage:   "text message to send with file",
 		},
 		&cli.StringFlag{
 			Name:        "filename",
-			Usage:       "Sets value of filename attribute. If empty, attribute will not be set.",
+			Usage:       "value of filename attribute (not set if empty)",
 			DefaultText: "uses name from given path",
 		},
 		&EnumFlag{
 			StringFlag: cli.StringFlag{
 				Name:        "type",
 				Aliases:     []string{"as"},
-				Usage:       "Sets type of uploaded document.",
+				Usage:       "type of uploaded document",
 				DefaultText: "uses MIME type to detect",
 			},
 			Allowed: []string{"file", "video", "audio", "voice", "gif", "sticker"},
@@ -55,7 +55,7 @@ func (p *app) uploadFlags() []cli.Flag {
 			Name:    "threads",
 			Aliases: []string{"j"},
 			Value:   1,
-			Usage:   "Concurrency",
+			Usage:   "concurrency limit",
 		},
 	}, messageFlags()...)
 }

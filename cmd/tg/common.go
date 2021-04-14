@@ -15,19 +15,19 @@ func messageFlags() []cli.Flag {
 	return []cli.Flag{
 		&cli.BoolFlag{
 			Name:  "html",
-			Usage: "Use HTML styling.",
+			Usage: "use HTML styling",
 		},
 		&cli.BoolFlag{
 			Name:  "silent",
-			Usage: "Sets flag to send this message silently (no notifications for the receivers).",
+			Usage: "send this message silently (no notifications for the receivers)",
 		},
 		&cli.BoolFlag{
 			Name:  "nowebpage",
-			Usage: "Sets flag to disable generation of the webpage preview.",
+			Usage: "disable generation of the webpage preview",
 		},
 		&cli.DurationFlag{
 			Name:  "schedule",
-			Usage: "Sets scheduled message date for scheduled messages.",
+			Usage: "scheduled message date for scheduled messages",
 		},
 	}
 }

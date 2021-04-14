@@ -35,19 +35,19 @@ func main() {
 				Name:    "config",
 				Aliases: []string{"c"},
 				Value:   defaultConfigPath(),
-				Usage:   "Config to use",
+				Usage:   "config to use",
 			},
 			&cli.BoolFlag{
 				Name:    "test",
 				Aliases: []string{"staging"},
-				Usage:   "Sets flag to connect to Telegram test DC.",
+				Usage:   "connect to telegram test server",
 			},
 		},
 
 		Commands: []*cli.Command{
 			{
 				Name:  "init",
-				Usage: "init config file",
+				Usage: "Creates config file",
 				Description: `Command init creates config file at the given path.
 Example:
 	tg init --app-id 10 --app-hash abcd --token token
@@ -57,7 +57,7 @@ Example:
 			},
 			{
 				Name:      "send",
-				Usage:     "Send message to peer",
+				Usage:     "Sends message to peer",
 				ArgsUsage: "[message]",
 				Flags:     p.sendFlags(),
 				Action:    p.sendCmd,
@@ -65,7 +65,7 @@ Example:
 			{
 				Name:      "upload",
 				Aliases:   []string{"up"},
-				Usage:     "upload file to peer",
+				Usage:     "Uploads file to peer",
 				ArgsUsage: "[path]",
 				Flags:     p.uploadFlags(),
 				Action:    p.uploadCmd,

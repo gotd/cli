@@ -15,19 +15,19 @@ func initFlags() []cli.Flag {
 		&cli.IntFlag{
 			Name:     "app-id",
 			Required: true,
-			Usage:    "Telegram app ID.",
+			Usage:    "telegram app ID",
 			EnvVars:  []string{"APP_ID"},
 		},
 		&cli.StringFlag{
 			Name:     "app-hash",
 			Required: true,
-			Usage:    "Telegram app hash.",
+			Usage:    "telegram app hash",
 			EnvVars:  []string{"APP_HASH"},
 		},
 		&cli.StringFlag{
 			Name:     "token",
 			Required: true,
-			Usage:    "Telegram bot token.",
+			Usage:    "telegram bot token",
 			EnvVars:  []string{"BOT_TOKEN"},
 		},
 	}

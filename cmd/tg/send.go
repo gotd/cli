@@ -14,7 +14,7 @@ func (p *app) sendFlags() []cli.Flag {
 		&cli.StringFlag{
 			Name:    "peer",
 			Aliases: []string{"p", "target"},
-			Usage:   "Peer to write (e.g. channel name or username, phone number or deep link).",
+			Usage:   "peer to write (e.g. channel name or username, phone number or deep link)",
 		},
 	}, messageFlags()...)
 }
