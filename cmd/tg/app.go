@@ -11,13 +11,13 @@ import (
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/xerrors"
 	"gopkg.in/yaml.v3"
-
-	"github.com/gotd/td/telegram/dcs"
-	"github.com/gotd/td/telegram/invokers"
 
 	"github.com/gotd/td/session"
 	"github.com/gotd/td/telegram"
+	"github.com/gotd/td/telegram/dcs"
+	"github.com/gotd/td/telegram/invokers"
 	"github.com/gotd/td/tg"
 )
 
@@ -51,11 +51,11 @@ func (p *app) run(ctx context.Context, f func(ctx context.Context, api *tg.Clien
 	return client.Run(ctx, func(ctx context.Context) error {
 		s, err := client.AuthStatus(ctx)
 		if err != nil {
-			return fmt.Errorf("check auth status: %w", err)
+			return xerrors.Errorf("check auth status: %w", err)
 		}
 		if !s.Authorized {
 			if _, err := client.AuthBot(ctx, p.cfg.BotToken); err != nil {
-				return fmt.Errorf("check auth status: %w", err)
+				return xerrors.Errorf("check auth status: %w", err)
 			}
 		}
 
@@ -87,7 +87,7 @@ func (p *app) Before(c *cli.Context) error {
 
 	cfgPath := c.String("config")
 	if cfgPath == "" {
-		return fmt.Errorf("no config path provided")
+		return xerrors.Errorf("no config path provided")
 	}
 
 	data, err := os.ReadFile(cfgPath)
@@ -100,7 +100,7 @@ func (p *app) Before(c *cli.Context) error {
 	}
 
 	if p.cfg.BotToken == "" {
-		return fmt.Errorf("no bot token provided")
+		return xerrors.Errorf("no bot token provided")
 	}
 
 	// Default to same directory (near with config).

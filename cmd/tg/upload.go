@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -16,11 +15,11 @@ import (
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
-
-	"github.com/gotd/td/telegram/message/styling"
+	"golang.org/x/xerrors"
 
 	"github.com/gotd/td/clock"
 	"github.com/gotd/td/telegram/message"
+	"github.com/gotd/td/telegram/message/styling"
 	"github.com/gotd/td/telegram/uploader"
 	"github.com/gotd/td/tg"
 )
@@ -63,11 +62,11 @@ func (p *app) uploadFlags() []cli.Flag {
 func detectMIME(f io.ReadSeeker) (*mimetype.MIME, error) {
 	mime, err := mimetype.DetectReader(f)
 	if err != nil {
-		return nil, fmt.Errorf("detect MIME: %w", err)
+		return nil, xerrors.Errorf("detect MIME: %w", err)
 	}
 
 	if _, err := f.Seek(0, io.SeekStart); err != nil {
-		return nil, fmt.Errorf("seek to start: %w", err)
+		return nil, xerrors.Errorf("seek to start: %w", err)
 	}
 
 	return mime, nil
@@ -178,7 +177,7 @@ func (p *app) uploadCmd(c *cli.Context) error {
 
 			f, err := os.Open(filepath.Clean(path))
 			if err != nil {
-				return fmt.Errorf("open %q: %w", path, err)
+				return xerrors.Errorf("open %q: %w", path, err)
 			}
 			defer func() {
 				_ = f.Close()
@@ -209,12 +208,12 @@ func (p *app) uploadCmd(c *cli.Context) error {
 
 				fileInput, err := upld.Upload(ctx, upload)
 				if err != nil {
-					return fmt.Errorf("upload %q: %w", path, err)
+					return xerrors.Errorf("upload %q: %w", path, err)
 				}
 
 				b, options := applyMessageFlags(c, builder, c.String("message"))
 				if _, err := b.Media(ctx, prepareFile(c, fileInput, options, fileName, m.String())); err != nil {
-					return fmt.Errorf("send %q: %w", path, err)
+					return xerrors.Errorf("send %q: %w", path, err)
 				}
 
 				return nil

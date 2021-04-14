@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/urfave/cli/v2"
+	"golang.org/x/xerrors"
 
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/tg"
@@ -30,7 +31,7 @@ func (p *app) sendCmd(c *cli.Context) error {
 
 		b, options := applyMessageFlags(c, builder, c.Args().First())
 		if _, err := b.StyledText(ctx, options...); err != nil {
-			return err
+			return xerrors.Errorf("send: %w", err)
 		}
 
 		return nil

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/urfave/cli/v2"
+	"golang.org/x/xerrors"
 	"gopkg.in/yaml.v3"
 )
 
@@ -39,11 +40,11 @@ func writeConfig(cfgPath string, cfg Config) error {
 	e.SetIndent(2)
 
 	if err := e.Encode(cfg); err != nil {
-		return fmt.Errorf("encode: %w", err)
+		return xerrors.Errorf("encode: %w", err)
 	}
 
 	if _, err := os.Stat(cfgPath); err == nil {
-		return fmt.Errorf("file %s exist", cfgPath)
+		return xerrors.Errorf("file %s exist", cfgPath)
 	}
 
 	if err := os.MkdirAll(filepath.Dir(cfgPath), 0700); err != nil {
@@ -51,7 +52,7 @@ func writeConfig(cfgPath string, cfg Config) error {
 	}
 
 	if err := os.WriteFile(cfgPath, buf.Bytes(), 0600); err != nil {
-		return fmt.Errorf("write: %w", err)
+		return xerrors.Errorf("write: %w", err)
 	}
 
 	return nil
@@ -66,7 +67,7 @@ func initCmd(c *cli.Context) error {
 
 	cfgPath := c.String("config")
 	if cfgPath == "" {
-		return fmt.Errorf("no config path provided")
+		return xerrors.Errorf("no config path provided")
 	}
 
 	defer fmt.Println("Wrote config to", cfgPath)

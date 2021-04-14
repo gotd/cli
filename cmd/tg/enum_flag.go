@@ -2,10 +2,10 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"strings"
 
 	"github.com/urfave/cli/v2"
+	"golang.org/x/xerrors"
 )
 
 // EnumFlag is a simple wrapper for StringFlag to make a string enum flag.
@@ -34,5 +34,5 @@ func (e *EnumFlag) Apply(set *flag.FlagSet) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("allowed values are %s", strings.Join(e.Allowed, ", "))
+	return xerrors.Errorf("allowed values are %s", strings.Join(e.Allowed, ", "))
 }
