@@ -169,6 +169,37 @@ func main() {
 				},
 			},
 			{
+				Name:      "send",
+				Usage:     "Send message to peer",
+				ArgsUsage: "[message]",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "peer",
+						Aliases: []string{"p", "target"},
+						Usage:   "Peer to write (e.g. channel name or username)",
+					},
+				},
+				Action: func(c *cli.Context) error {
+					return run(c.Context, func(ctx context.Context, api *tg.Client) error {
+						var target tg.InputPeerClass = &tg.InputPeerSelf{}
+						if targetDomain := c.String("peer"); targetDomain != "" {
+							r := peer.DefaultResolver(api)
+							resolved, err := r.ResolveDomain(ctx, targetDomain)
+							if err != nil {
+								return fmt.Errorf("failed to resolve %s: %w", targetDomain, err)
+							}
+							target = resolved
+						}
+						sender := message.NewSender(api)
+						if _, err := sender.To(target).Text(ctx, c.Args().First()); err != nil {
+							return err
+						}
+
+						return nil
+					})
+				},
+			},
+			{
 				Name:      "upload",
 				Aliases:   []string{"up"},
 				Usage:     "upload file to peer",
