@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"time"
 
 	"github.com/gabriel-vasile/mimetype"
 	"github.com/schollz/progressbar/v3"
@@ -263,19 +264,44 @@ func main() {
 							filepath.Base(f.Name()), io.TeeReader(f, p), s.Size(),
 						)
 
+						sender := message.NewSender(api).To(target)
+
+						done := make(chan struct{})
+						defer close(done)
+
+						go func() {
+							sendProgress := func() {
+								a := sender.TypingAction()
+								percent := int(p.State().CurrentPercent * 100)
+								if err := a.UploadDocument(ctx, percent); err != nil && !errors.Is(err, context.Canceled) {
+									log.Error("Action failed", zap.Error(err))
+								}
+							}
+
+							// Initial progress.
+							sendProgress()
+
+							for {
+								select {
+								case <-time.After(time.Second * 5):
+									sendProgress()
+								case <-done:
+									return
+								}
+							}
+						}()
+
 						fileInput, err := u.Upload(ctx, upload)
 						if err != nil {
 							return err
 						}
 
 						name := styling.Plain(f.Name())
-						if _, err := message.NewSender(api).
-							To(target).
-							Media(ctx,
-								message.File(fileInput, name).
-									MIME(mime.String()).
-									Filename(filepath.Base(f.Name())),
-							); err != nil {
+						if _, err := sender.Media(ctx,
+							message.File(fileInput, name).
+								MIME(mime.String()).
+								Filename(filepath.Base(f.Name())),
+						); err != nil {
 							return err
 						}
 
