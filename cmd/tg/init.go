@@ -13,13 +13,13 @@ import (
 func initFlags() []cli.Flag {
 	return []cli.Flag{
 		&cli.IntFlag{
-			Name:     "app_id",
+			Name:     "app-id",
 			Required: true,
 			Usage:    "Telegram app ID.",
 			EnvVars:  []string{"APP_ID"},
 		},
 		&cli.StringFlag{
-			Name:     "app_hash",
+			Name:     "app-hash",
 			Required: true,
 			Usage:    "Telegram app hash.",
 			EnvVars:  []string{"APP_HASH"},
@@ -59,8 +59,8 @@ func writeConfig(cfgPath string, cfg Config) error {
 
 func initCmd(c *cli.Context) error {
 	sampleCfg := Config{
-		AppID:    c.Int("app_id"),
-		AppHash:  c.String("app_hash"),
+		AppID:    c.Int("app-id"),
+		AppHash:  c.String("app-hash"),
 		BotToken: c.String("token"),
 	}
 

@@ -50,7 +50,7 @@ func main() {
 				Usage: "init config file",
 				Description: `Command init creates config file at the given path.
 Example:
-	tg init --app_id 10 --app_hash abcd --token token
+	tg init --app-id 10 --app-hash abcd --token token
 `,
 				Flags:  initFlags(),
 				Action: initCmd,
