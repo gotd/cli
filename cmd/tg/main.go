@@ -1,31 +1,13 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"crypto/md5"
-	"errors"
-	"fmt"
-	"io"
 	stdlog "log"
 	"os"
 	"os/signal"
 	"path/filepath"
-	"time"
 
-	"github.com/gabriel-vasile/mimetype"
-	"github.com/schollz/progressbar/v3"
 	"github.com/urfave/cli/v2"
-	"go.uber.org/zap"
-	"gopkg.in/yaml.v3"
-
-	"github.com/gotd/td/session"
-	"github.com/gotd/td/telegram"
-	"github.com/gotd/td/telegram/message"
-	"github.com/gotd/td/telegram/message/peer"
-	"github.com/gotd/td/telegram/message/styling"
-	"github.com/gotd/td/telegram/uploader"
-	"github.com/gotd/td/tg"
 )
 
 type Config struct {
@@ -44,45 +26,7 @@ func defaultConfigPath() string {
 }
 
 func main() {
-	var (
-		cfg Config
-		log *zap.Logger
-
-		opt = telegram.Options{
-			NoUpdates: true,
-		}
-	)
-
-	{
-		// We need to log somewhere until configured?
-		zapCfg := zap.NewDevelopmentConfig()
-		zapCfg.Level.SetLevel(zap.WarnLevel)
-
-		defaultLog, err := zapCfg.Build()
-		if err != nil {
-			panic(err)
-		}
-		log = defaultLog
-	}
-
-	run := func(ctx context.Context, f func(ctx context.Context, api *tg.Client) error) error {
-		c := telegram.NewClient(cfg.AppID, cfg.AppHash, opt)
-
-		return c.Run(ctx, func(ctx context.Context) error {
-			s, err := c.AuthStatus(ctx)
-			if err != nil {
-				return err
-			}
-			if !s.Authorized {
-				if _, err := c.AuthBot(ctx, cfg.BotToken); err != nil {
-					return err
-				}
-			}
-
-			return f(ctx, tg.NewClient(c))
-		})
-	}
-
+	p := newApp()
 	app := &cli.App{
 		Name:  "tg",
 		Usage: "Telegram CLI",
@@ -93,223 +37,43 @@ func main() {
 				Value:   defaultConfigPath(),
 				Usage:   "Config to use",
 			},
+			&cli.BoolFlag{
+				Name:    "test",
+				Aliases: []string{"staging"},
+				Usage:   "Sets flag to connect to Telegram test DC.",
+			},
 		},
 
-		Before: func(c *cli.Context) error {
-			// HACK for init.
-			if len(os.Args) >= 2 && os.Args[1] == "init" {
-				return nil
-			}
-
-			cfgPath := c.String("config")
-			if cfgPath == "" {
-				return fmt.Errorf("no config path provided")
-			}
-
-			data, err := os.ReadFile(cfgPath)
-			if err != nil {
-				return err
-			}
-
-			if err := yaml.Unmarshal(data, &cfg); err != nil {
-				return err
-			}
-
-			if cfg.BotToken == "" {
-				return fmt.Errorf("no bot token provided")
-			}
-
-			// Default to same directory (near with config).
-			// Probably there is better way to handle this.
-			sessionName := fmt.Sprintf("gotd.session.%x.json", md5.Sum([]byte(cfg.BotToken)))
-			opt.Logger = log.Named("tg")
-			opt.SessionStorage = &session.FileStorage{
-				Path: filepath.Join(filepath.Dir(cfgPath), sessionName),
-			}
-
-			return nil
-		},
 		Commands: []*cli.Command{
 			{
 				Name:  "init",
 				Usage: "init config file",
-				Action: func(c *cli.Context) error {
-					buf := new(bytes.Buffer)
-					e := yaml.NewEncoder(buf)
-					e.SetIndent(2)
-
-					sampleCfg := Config{
-						AppID:    telegram.TestAppID,
-						AppHash:  telegram.TestAppHash,
-						BotToken: "123456:10",
-					}
-					if err := e.Encode(sampleCfg); err != nil {
-						return err
-					}
-
-					cfgPath := c.String("config")
-					if cfgPath == "" {
-						return fmt.Errorf("no config path provided")
-					}
-
-					if _, err := os.Stat(cfgPath); err == nil {
-						return fmt.Errorf("file %s exist", cfgPath)
-					}
-
-					if err := os.MkdirAll(filepath.Dir(cfgPath), 0700); err != nil {
-						return err
-					}
-
-					if err := os.WriteFile(cfgPath, buf.Bytes(), 0600); err != nil {
-						return fmt.Errorf("write: %w", err)
-					}
-
-					fmt.Println("Wrote sample config to", cfgPath)
-
-					return nil
-				},
+				Description: `Command init creates config file at the given path.
+Example:
+	tg init --app_id 10 --app_hash abcd --token token
+`,
+				Flags:  initFlags(),
+				Action: initCmd,
 			},
 			{
 				Name:      "send",
 				Usage:     "Send message to peer",
 				ArgsUsage: "[message]",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:    "peer",
-						Aliases: []string{"p", "target"},
-						Usage:   "Peer to write (e.g. channel name or username)",
-					},
-				},
-				Action: func(c *cli.Context) error {
-					return run(c.Context, func(ctx context.Context, api *tg.Client) error {
-						var target tg.InputPeerClass = &tg.InputPeerSelf{}
-						if targetDomain := c.String("peer"); targetDomain != "" {
-							r := peer.DefaultResolver(api)
-							resolved, err := r.ResolveDomain(ctx, targetDomain)
-							if err != nil {
-								return fmt.Errorf("failed to resolve %s: %w", targetDomain, err)
-							}
-							target = resolved
-						}
-						sender := message.NewSender(api)
-						if _, err := sender.To(target).Text(ctx, c.Args().First()); err != nil {
-							return err
-						}
-
-						return nil
-					})
-				},
+				Flags:     p.sendFlags(),
+				Action:    p.sendCmd,
 			},
 			{
 				Name:      "upload",
 				Aliases:   []string{"up"},
 				Usage:     "upload file to peer",
 				ArgsUsage: "[path]",
-				Flags: []cli.Flag{
-					&cli.StringFlag{
-						Name:    "peer",
-						Aliases: []string{"p", "target"},
-						Usage:   "Peer to write (e.g. channel name or username)",
-					},
-					&cli.IntFlag{
-						Name:    "threads",
-						Aliases: []string{"j"},
-						Value:   1,
-						Usage:   "Concurrency",
-					},
-				},
-				Action: func(c *cli.Context) error {
-					return run(c.Context, func(ctx context.Context, api *tg.Client) error {
-						fileName := c.Args().First()
-						if fileName == "" {
-							return errors.New("no file name provided")
-						}
-						f, err := os.Open(c.Args().First())
-						if err != nil {
-							return err
-						}
-						defer func() {
-							_ = f.Close()
-						}()
-
-						mime, err := mimetype.DetectReader(f)
-						if err != nil {
-							return err
-						}
-						if _, err := f.Seek(0, io.SeekStart); err != nil {
-							return err
-						}
-
-						var target tg.InputPeerClass = &tg.InputPeerSelf{}
-						if targetDomain := c.String("peer"); targetDomain != "" {
-							r := peer.DefaultResolver(api)
-							resolved, err := r.ResolveDomain(ctx, targetDomain)
-							if err != nil {
-								return fmt.Errorf("failed to resolve %s: %w", targetDomain, err)
-							}
-							target = resolved
-							fmt.Println("Uploading", f.Name(), "to", targetDomain)
-						} else {
-							fmt.Println("Saving", f.Name(), "to favorites")
-						}
-
-						s, err := f.Stat()
-						if err != nil {
-							return err
-						}
-
-						p := progressbar.DefaultBytes(s.Size(), "upload")
-						u := uploader.NewUploader(api).WithThreads(c.Int("threads"))
-						upload := uploader.NewUpload(
-							filepath.Base(f.Name()), io.TeeReader(f, p), s.Size(),
-						)
-
-						sender := message.NewSender(api).To(target)
-
-						done := make(chan struct{})
-						defer close(done)
-
-						go func() {
-							sendProgress := func() {
-								a := sender.TypingAction()
-								percent := int(p.State().CurrentPercent * 100)
-								if err := a.UploadDocument(ctx, percent); err != nil && !errors.Is(err, context.Canceled) {
-									log.Error("Action failed", zap.Error(err))
-								}
-							}
-
-							// Initial progress.
-							sendProgress()
-
-							for {
-								select {
-								case <-time.After(time.Second * 5):
-									sendProgress()
-								case <-done:
-									return
-								}
-							}
-						}()
-
-						fileInput, err := u.Upload(ctx, upload)
-						if err != nil {
-							return err
-						}
-
-						name := styling.Plain(f.Name())
-						if _, err := sender.Media(ctx,
-							message.File(fileInput, name).
-								MIME(mime.String()).
-								Filename(filepath.Base(f.Name())),
-						); err != nil {
-							return err
-						}
-
-						return nil
-					})
-				},
+				Flags:     p.uploadFlags(),
+				Action:    p.uploadCmd,
 			},
 		},
+	}
+	for _, cmd := range app.Commands {
+		cmd.Before = p.Before
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
