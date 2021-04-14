@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	stdlog "log"
+	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -80,6 +80,7 @@ Example:
 	defer cancel()
 
 	if err := app.RunContext(ctx, os.Args); err != nil {
-		stdlog.Fatalf("Run: %+v", err)
+		fmt.Printf("%+v\n", err)
+		os.Exit(1)
 	}
 }
