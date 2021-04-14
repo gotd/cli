@@ -3,13 +3,16 @@ package main
 import (
 	"context"
 	"crypto/md5"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/gotd/td/telegram/dcs"
+	"github.com/gotd/td/telegram/invokers"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 	"gopkg.in/yaml.v3"
 
 	"github.com/gotd/td/session"
@@ -55,7 +58,23 @@ func (p *app) run(ctx context.Context, f func(ctx context.Context, api *tg.Clien
 			}
 		}
 
-		return f(ctx, tg.NewClient(c))
+		invoker := invokers.NewWaiter(c)
+		raw := tg.NewClient(invoker)
+
+		ctx, cancel := context.WithCancel(ctx)
+		g, ctx := errgroup.WithContext(ctx)
+		g.Go(func() error {
+			return invoker.Run(ctx)
+		})
+		g.Go(func() error {
+			defer cancel()
+			return f(ctx, raw)
+		})
+
+		if err := g.Wait(); !errors.Is(err, context.Canceled) {
+			return err
+		}
+		return nil
 	})
 }
 
