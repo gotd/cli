@@ -3,10 +3,11 @@ package main
 import (
 	"time"
 
+	"github.com/urfave/cli/v2"
+
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/telegram/message/html"
 	"github.com/gotd/td/telegram/message/styling"
-	"github.com/urfave/cli/v2"
 )
 
 // messageFlags returns common flags for send and upload.
