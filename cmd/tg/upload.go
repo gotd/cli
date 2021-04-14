@@ -131,11 +131,11 @@ func (p *app) uploadCmd(c *cli.Context) error {
 
 		return filepath.Walk(arg, func(path string, info fs.FileInfo, err error) error {
 			// Stop if got error, skip if current file is directory.
-			if err != nil || info.IsDir() {
+			if info.IsDir() || err != nil {
 				return err
 			}
 
-			f, err := os.Open(arg)
+			f, err := os.Open(path)
 			if err != nil {
 				return fmt.Errorf("open %q: %w", path, err)
 			}
