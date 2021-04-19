@@ -14,6 +14,7 @@ import (
 	"golang.org/x/xerrors"
 	"gopkg.in/yaml.v3"
 
+	"github.com/gotd/cli/internal/pretty"
 	"github.com/gotd/td/session"
 	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/telegram/dcs"
@@ -25,6 +26,8 @@ type app struct {
 	cfg  Config
 	log  *zap.Logger
 	opts telegram.Options
+
+	debugInvoker bool
 }
 
 func newApp() *app {
@@ -59,17 +62,20 @@ func (p *app) run(ctx context.Context, f func(ctx context.Context, api *tg.Clien
 			}
 		}
 
-		invoker := invokers.NewWaiter(client)
-		raw := tg.NewClient(invoker)
-
 		ctx, cancel := context.WithCancel(ctx)
 		g, ctx := errgroup.WithContext(ctx)
+
+		invoker := invokers.NewWaiter(client)
 		g.Go(func() error {
 			return invoker.Run(ctx)
 		})
 		g.Go(func() error {
 			defer cancel()
-			return f(ctx, raw)
+			var i tg.Invoker = invoker
+			if p.debugInvoker {
+				i = pretty.Invoker{Next: i}
+			}
+			return f(ctx, tg.NewClient(i))
 		})
 
 		if err := g.Wait(); !errors.Is(err, context.Canceled) {
@@ -112,6 +118,9 @@ func (p *app) Before(c *cli.Context) error {
 	}
 	if c.Bool("test") {
 		p.opts.DCList = dcs.StagingDCs()
+	}
+	if c.Bool("debug-invoker") {
+		p.debugInvoker = true
 	}
 
 	return nil
