@@ -38,6 +38,10 @@ func main() {
 				Usage:   "config to use",
 			},
 			&cli.BoolFlag{
+				Name:  "debug-invoker",
+				Usage: "use pretty-printing debug invoker",
+			},
+			&cli.BoolFlag{
 				Name:    "test",
 				Aliases: []string{"staging"},
 				Usage:   "connect to telegram test server",
