@@ -17,10 +17,10 @@ github.com/google/renameio v0.1.0/go.mod h1:KWCgfxg9yswjAJkECMjeO8J8rahYeXnNhOm4
 github.com/gotd/getdoc v0.6.2/go.mod h1:6Ul8cyaq+Aw0gVyuU+TKZPCmNjdlylzSIWVxjzI5t/U=
 github.com/gotd/ige v0.1.5 h1:qITql4hZpqPM/DSeO5IVlxzXJxrs4ZZiKRwPif2K76U=
 github.com/gotd/ige v0.1.5/go.mod h1:LbvqjUuGELVuHcKjfJZ2NPNzegICQU4eqrPAkXy0nTs=
-github.com/gotd/neo v0.1.2 h1:hayFfKNSH5RP/L+KKKnsKMdDNCdhSfzVuo5TF4wvpa8=
-github.com/gotd/neo v0.1.2/go.mod h1:9A2a4bn9zL6FADufBdt7tZt+WMhvZoc5gWXihOPoiBQ=
-github.com/gotd/td v0.36.0 h1:DTr1lmy2/xTpbulwDTCuOLoi0uQuHWBtySId7fQviGU=
-github.com/gotd/td v0.36.0/go.mod h1:OV+Y69MunCE4jtCnSIiX+Ys+o7413wur2ZIioE7oP78=
+github.com/gotd/neo v0.1.3 h1:rCKbMssH7mlkE31wjVOQcxmhNkSTC3uLZyETigUiKvQ=
+github.com/gotd/neo v0.1.3/go.mod h1:9A2a4bn9zL6FADufBdt7tZt+WMhvZoc5gWXihOPoiBQ=
+github.com/gotd/td v0.37.0 h1:qRHKKVqLrlLxiglvj4/tGogy26UF7WSqqbA7MZiRJbo=
+github.com/gotd/td v0.37.0/go.mod h1:XrWGGkG5eDFFpY+MmIPTU1L7MSE3WV64RpUN/YOb5Xk=
 github.com/gotd/tl v0.4.0/go.mod h1:CMIcjPWFS4qxxJ+1Ce7U/ilbtPrkoVo/t8uhN5Y/D7c=
 github.com/gotd/xor v0.1.0/go.mod h1:ZTmdgqf6SOHder8/MFp9CNkXIadzID5lIiaZxRZICH0=
 github.com/gotd/xor v0.1.1 h1:LSPEeuf7noTo4fi4PrEsAaWXOSwjsY2e+IINPiR+c7s=
