@@ -53,7 +53,7 @@ func applyMessageFlags(
 
 	option := styling.Plain(msg)
 	if c.Bool("html") {
-		option = html.String(msg)
+		option = html.String(nil, msg)
 	}
 
 	return p, []styling.StyledTextOption{option}
