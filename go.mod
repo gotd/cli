@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	github.com/gabriel-vasile/mimetype v1.3.0
-	github.com/gotd/td v0.40.0
+	github.com/gotd/td v0.40.1-0.20210516083941-d60d12407ab1
 	github.com/schollz/progressbar/v3 v3.8.1
 	github.com/urfave/cli/v2 v2.3.0
 	go.uber.org/zap v1.16.0

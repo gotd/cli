@@ -14,12 +14,13 @@ import (
 	"golang.org/x/xerrors"
 	"gopkg.in/yaml.v3"
 
-	"github.com/gotd/cli/internal/pretty"
+	"github.com/gotd/td/middleware/floodwait"
 	"github.com/gotd/td/session"
 	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/telegram/dcs"
-	"github.com/gotd/td/telegram/invokers"
 	"github.com/gotd/td/tg"
+
+	"github.com/gotd/cli/internal/pretty"
 )
 
 type app struct {
@@ -65,7 +66,7 @@ func (p *app) run(ctx context.Context, f func(ctx context.Context, api *tg.Clien
 		ctx, cancel := context.WithCancel(ctx)
 		g, ctx := errgroup.WithContext(ctx)
 
-		invoker := invokers.NewWaiter(client)
+		invoker := floodwait.NewWaiter(client)
 		g.Go(func() error {
 			return invoker.Run(ctx)
 		})
