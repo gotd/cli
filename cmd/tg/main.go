@@ -74,6 +74,26 @@ Example:
 				Flags:     p.uploadFlags(),
 				Action:    p.uploadCmd,
 			},
+			{
+				Name:  "sticker",
+				Usage: "Manage sticker sets",
+				Subcommands: []*cli.Command{
+					{
+						Name:      "add",
+						Usage:     "Uploads and adds sticker to sticker set",
+						ArgsUsage: "[path]",
+						Flags:     p.stickerAddFlags(),
+						Action:    p.stickerAddCmd,
+					},
+					{
+						Name:      "create",
+						Usage:     "Creates new sticker set",
+						ArgsUsage: "[shortname]",
+						Flags:     p.stickerCreateFlags(),
+						Action:    p.stickerCreateCmd,
+					},
+				},
+			},
 		},
 	}
 	for _, cmd := range app.Commands {
