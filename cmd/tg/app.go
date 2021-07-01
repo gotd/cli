@@ -48,7 +48,7 @@ func newApp() *app {
 	}
 }
 
-func (p *app) run(ctx context.Context, f func(ctx context.Context, api *tg.Client) error) error {
+func (p *app) run(ctx context.Context, f func(ctx context.Context, api *telegram.Client) error) error {
 	client := telegram.NewClient(p.cfg.AppID, p.cfg.AppHash, p.opts)
 
 	return client.Run(ctx, func(ctx context.Context) error {
@@ -65,7 +65,7 @@ func (p *app) run(ctx context.Context, f func(ctx context.Context, api *tg.Clien
 			}
 		}
 
-		return f(ctx, client.API())
+		return f(ctx, client)
 	})
 }
 

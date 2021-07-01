@@ -6,8 +6,8 @@ import (
 	"github.com/urfave/cli/v2"
 	"golang.org/x/xerrors"
 
+	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/telegram/message"
-	"github.com/gotd/td/tg"
 )
 
 func (p *app) sendFlags() []cli.Flag {
@@ -21,7 +21,8 @@ func (p *app) sendFlags() []cli.Flag {
 }
 
 func (p *app) sendCmd(c *cli.Context) error {
-	return p.run(c.Context, func(ctx context.Context, api *tg.Client) error {
+	return p.run(c.Context, func(ctx context.Context, client *telegram.Client) error {
+		api := client.API()
 		sender := message.NewSender(api)
 
 		builder := sender.Self()

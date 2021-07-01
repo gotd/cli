@@ -8,6 +8,7 @@ import (
 	"github.com/urfave/cli/v2"
 	"golang.org/x/xerrors"
 
+	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/telegram/uploader"
 	"github.com/gotd/td/tg"
@@ -28,42 +29,53 @@ func (p *app) stickerAddFlags() []cli.Flag {
 	}
 }
 
+func uploadSticker(ctx context.Context, api *tg.Client, arg string) (*tg.Document, error) {
+	upld := uploader.NewUploader(api).
+		WithPartSize(uploader.MaximumPartSize)
+
+	file, err := upld.FromPath(ctx, arg)
+	if err != nil {
+		return nil, xerrors.Errorf("upload sticker: %w", err)
+	}
+
+	// TODO: replace with some helper
+	confirmed, err := api.MessagesUploadMedia(ctx, &tg.MessagesUploadMediaRequest{
+		Peer: &tg.InputPeerSelf{},
+		Media: &tg.InputMediaUploadedDocument{
+			File:     file,
+			MimeType: "image/png",
+		},
+	})
+	if err != nil {
+		return nil, xerrors.Errorf("confirm upload: %w", err)
+	}
+
+	// TODO: return and print pretty error if uploaded file has invalid type
+	media, ok := confirmed.(*tg.MessageMediaDocument)
+	if !ok {
+		return nil, xerrors.Errorf("unexpected media type %T", confirmed)
+	}
+
+	doc, ok := media.Document.AsNotEmpty()
+	if !ok {
+		return nil, xerrors.Errorf("invalid document %T", media.Document)
+	}
+
+	return doc, nil
+}
+
 func (p *app) stickerAddCmd(c *cli.Context) error {
-	return p.run(c.Context, func(ctx context.Context, api *tg.Client) error {
+	return p.run(c.Context, func(ctx context.Context, client *telegram.Client) error {
+		api := client.API()
+
 		arg := c.Args().First()
 		if arg == "" {
 			return errors.New("no file name provided")
 		}
 
-		upld := uploader.NewUploader(api).
-			WithPartSize(uploader.MaximumPartSize)
-
-		file, err := upld.FromPath(ctx, arg)
+		doc, err := uploadSticker(ctx, api, arg)
 		if err != nil {
-			return xerrors.Errorf("upload sticker: %w", err)
-		}
-
-		// TODO: replace with some helper
-		confirmed, err := api.MessagesUploadMedia(ctx, &tg.MessagesUploadMediaRequest{
-			Peer: &tg.InputPeerSelf{},
-			Media: &tg.InputMediaUploadedDocument{
-				File:     file,
-				MimeType: "image/png",
-			},
-		})
-		if err != nil {
-			return xerrors.Errorf("confirm upload: %w", err)
-		}
-
-		// TODO: return and print pretty error if uploaded file has invalid type
-		media, ok := confirmed.(*tg.MessageMediaDocument)
-		if !ok {
-			return xerrors.Errorf("unexpected media type %T", confirmed)
-		}
-
-		doc, ok := media.Document.AsNotEmpty()
-		if !ok {
-			return xerrors.Errorf("invalid document %T", media.Document)
+			return err
 		}
 
 		set, err := api.StickersAddStickerToSet(ctx, &tg.StickersAddStickerToSetRequest{
@@ -83,7 +95,7 @@ func (p *app) stickerAddCmd(c *cli.Context) error {
 }
 
 func (p *app) stickerCreateFlags() []cli.Flag {
-	return []cli.Flag{
+	return append([]cli.Flag{
 		&cli.StringFlag{
 			Name:     "title",
 			Required: true,
@@ -102,11 +114,12 @@ func (p *app) stickerCreateFlags() []cli.Flag {
 			Name:  "animated",
 			Usage: "Whether this is a animated sticker set",
 		},
-	}
+	}, p.stickerAddFlags()...)
 }
 
 func (p *app) stickerCreateCmd(c *cli.Context) error {
-	return p.run(c.Context, func(ctx context.Context, api *tg.Client) error {
+	return p.run(c.Context, func(ctx context.Context, client *telegram.Client) error {
+		api := client.API()
 		sender := message.NewSender(api)
 
 		arg := c.Args().First()
@@ -114,22 +127,35 @@ func (p *app) stickerCreateCmd(c *cli.Context) error {
 			return errors.New("no sticker set shortname provided")
 		}
 
-		builder := sender.Self()
-		if targetDomain := c.String("owner"); targetDomain != "" {
-			builder = sender.Resolve(targetDomain)
+		me, err := client.Self(ctx)
+		if err != nil {
+			return xerrors.Errorf("get self: %w", err)
 		}
 
-		owner, err := builder.AsInputUser(ctx)
+		owner, err := sender.Resolve(c.String("owner")).AsInputUser(ctx)
 		if err != nil {
 			return xerrors.Errorf("resolve owner: %w", err)
 		}
 
+		doc, err := uploadSticker(ctx, api, arg)
+		if err != nil {
+			return err
+		}
+
 		set, err := api.StickersCreateStickerSet(ctx, &tg.StickersCreateStickerSetRequest{
-			Masks:     c.Bool("masks"),
-			Animated:  c.Bool("animated"),
-			UserID:    owner,
-			Title:     c.String("title"),
-			ShortName: arg,
+			Masks:    c.Bool("masks"),
+			Animated: c.Bool("animated"),
+			UserID:   owner,
+			Title:    c.String("title"),
+			// It must begin with a letter, can’t contain consecutive underscores and must end in ‘_by_<bot username>’.
+			// See https://docs.pyrogram.org/api/errors/bad-request#:~:text=PACK_SHORT_NAME_INVALID
+			ShortName: c.String("sticker-set") + "_by_" + me.Username,
+			Stickers: []tg.InputStickerSetItem{
+				{
+					Document: doc.AsInput(),
+					Emoji:    c.String("emoji"),
+				},
+			},
 		})
 		if err != nil {
 			return xerrors.Errorf("create set: %w", err)
