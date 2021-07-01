@@ -79,16 +79,24 @@ Example:
 				Usage: "Manage sticker sets",
 				Subcommands: []*cli.Command{
 					{
-						Name:      "add",
-						Usage:     "Uploads and adds sticker to sticker set",
-						ArgsUsage: "[path]",
+						Name:  "add",
+						Usage: "Uploads and adds sticker to sticker set",
+						Description: `Command add adds new sticker set
+Example:
+	tg sticker add --set="memestickers" -e "😀" sticker.png
+`,
+						ArgsUsage: "[path to sticker]",
 						Flags:     p.stickerAddFlags(),
 						Action:    p.stickerAddCmd,
 					},
 					{
-						Name:      "create",
-						Usage:     "Creates new sticker set",
-						ArgsUsage: "[shortname]",
+						Name:  "create",
+						Usage: "Creates new sticker set",
+						Description: `Command create creates new sticker set
+Example:
+	tg sticker create --title "Memes by durov" --owner=durov --set="memestickers" -e "😀" first_sticker.png
+`,
+						ArgsUsage: "[path to first sticker]",
 						Flags:     p.stickerCreateFlags(),
 						Action:    p.stickerCreateCmd,
 					},

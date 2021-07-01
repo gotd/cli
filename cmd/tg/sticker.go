@@ -18,11 +18,13 @@ func (p *app) stickerAddFlags() []cli.Flag {
 	return []cli.Flag{
 		&cli.StringFlag{
 			Name:     "sticker-set",
+			Aliases:  []string{"set", "name"},
 			Required: true,
 			Usage:    "name of sticker set to add sticker (from tg://addstickers?set=short_name)",
 		},
 		&cli.StringFlag{
 			Name:     "emoji",
+			Aliases:  []string{"e"},
 			Required: true,
 			Usage:    "emoji list to associate with sticker",
 		},
@@ -98,11 +100,13 @@ func (p *app) stickerCreateFlags() []cli.Flag {
 	return append([]cli.Flag{
 		&cli.StringFlag{
 			Name:     "title",
+			Aliases:  []string{"t"},
 			Required: true,
 			Usage:    "Sticker set title, 1-64 chars",
 		},
 		&cli.StringFlag{
 			Name:     "owner",
+			Aliases:  []string{"o"},
 			Required: true,
 			Usage:    "Sticker set owner username",
 		},
