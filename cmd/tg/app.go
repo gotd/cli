@@ -3,32 +3,31 @@ package main
 import (
 	"context"
 	"crypto/md5" // #nosec
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
-	"golang.org/x/sync/errgroup"
 	"golang.org/x/xerrors"
 	"gopkg.in/yaml.v3"
 
-	"github.com/gotd/td/middleware/floodwait"
+	"github.com/gotd/cli/internal/pretty"
+	"github.com/gotd/td/bin"
+	"github.com/gotd/td/clock"
 	"github.com/gotd/td/session"
 	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/telegram/dcs"
 	"github.com/gotd/td/tg"
-
-	"github.com/gotd/cli/internal/pretty"
+	"github.com/gotd/td/tgerr"
 )
 
 type app struct {
 	cfg  Config
 	log  *zap.Logger
 	opts telegram.Options
-
-	debugInvoker bool
 }
 
 func newApp() *app {
@@ -53,36 +52,20 @@ func (p *app) run(ctx context.Context, f func(ctx context.Context, api *tg.Clien
 	client := telegram.NewClient(p.cfg.AppID, p.cfg.AppHash, p.opts)
 
 	return client.Run(ctx, func(ctx context.Context) error {
-		s, err := client.AuthStatus(ctx)
-		if err != nil {
-			return xerrors.Errorf("check auth status: %w", err)
-		}
-		if !s.Authorized {
-			if _, err := client.AuthBot(ctx, p.cfg.BotToken); err != nil {
+		{
+			auth := client.Auth()
+			s, err := auth.Status(ctx)
+			if err != nil {
 				return xerrors.Errorf("check auth status: %w", err)
 			}
-		}
-
-		ctx, cancel := context.WithCancel(ctx)
-		g, ctx := errgroup.WithContext(ctx)
-
-		invoker := floodwait.NewWaiter(client)
-		g.Go(func() error {
-			return invoker.Run(ctx)
-		})
-		g.Go(func() error {
-			defer cancel()
-			var i tg.Invoker = invoker
-			if p.debugInvoker {
-				i = pretty.Invoker{Next: i}
+			if !s.Authorized {
+				if _, err := auth.Bot(ctx, p.cfg.BotToken); err != nil {
+					return xerrors.Errorf("check auth status: %w", err)
+				}
 			}
-			return f(ctx, tg.NewClient(i))
-		})
-
-		if err := g.Wait(); !errors.Is(err, context.Canceled) {
-			return err
 		}
-		return nil
+
+		return f(ctx, client.API())
 	})
 }
 
@@ -118,11 +101,36 @@ func (p *app) Before(c *cli.Context) error {
 		Path: filepath.Join(filepath.Dir(cfgPath), sessionName),
 	}
 	if c.Bool("test") {
-		p.opts.DCList = dcs.StagingDCs()
+		p.opts.DCList = dcs.Staging()
 	}
 	if c.Bool("debug-invoker") {
-		p.debugInvoker = true
+		p.opts.Middlewares = append(p.opts.Middlewares, pretty.Middleware)
 	}
+
+	var backoffRetry telegram.MiddlewareFunc = func(next tg.Invoker) telegram.InvokeFunc {
+		return func(ctx context.Context, input bin.Encoder, output bin.Decoder) error {
+			return backoff.Retry(func() error {
+				if err := next.Invoke(ctx, input, output); err != nil {
+					if d, ok := tgerr.AsFloodWait(err); ok {
+						timer := clock.System.Timer(d + time.Second)
+						defer clock.StopTimer(timer)
+
+						select {
+						case <-timer.C():
+							return err
+						case <-ctx.Done():
+							return ctx.Err()
+						}
+					}
+
+					return backoff.Permanent(err)
+				}
+
+				return nil
+			}, backoff.WithContext(backoff.NewExponentialBackOff(), ctx))
+		}
+	}
+	p.opts.Middlewares = append(p.opts.Middlewares, backoffRetry)
 
 	return nil
 }
