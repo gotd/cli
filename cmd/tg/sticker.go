@@ -14,7 +14,7 @@ import (
 	"github.com/gotd/td/tg"
 )
 
-func (p *app) stickerAddFlags() []cli.Flag {
+func (p *app) stickerCmdFlags() []cli.Flag {
 	return []cli.Flag{
 		&cli.StringFlag{
 			Name:     "sticker-set",
@@ -22,13 +22,18 @@ func (p *app) stickerAddFlags() []cli.Flag {
 			Required: true,
 			Usage:    "name of sticker set to add sticker (from tg://addstickers?set=short_name)",
 		},
+	}
+}
+
+func (p *app) stickerAddFlags() []cli.Flag {
+	return append([]cli.Flag{
 		&cli.StringFlag{
 			Name:     "emoji",
 			Aliases:  []string{"e"},
 			Required: true,
 			Usage:    "emoji list to associate with sticker",
 		},
-	}
+	}, p.stickerCmdFlags()...)
 }
 
 func uploadSticker(ctx context.Context, api *tg.Client, arg string) (*tg.Document, error) {
@@ -128,7 +133,7 @@ func (p *app) stickerCreateCmd(c *cli.Context) error {
 
 		arg := c.Args().First()
 		if arg == "" {
-			return errors.New("no sticker set shortname provided")
+			return errors.New("no file name provided")
 		}
 
 		me, err := client.Self(ctx)
