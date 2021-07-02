@@ -9,6 +9,7 @@ import (
 	"golang.org/x/xerrors"
 
 	"github.com/gotd/td/telegram"
+	"github.com/gotd/td/telegram/downloader"
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/telegram/uploader"
 	"github.com/gotd/td/tg"
@@ -95,7 +96,7 @@ func (p *app) stickerAddCmd(c *cli.Context) error {
 		if err != nil {
 			return xerrors.Errorf("add to sticker set: %w", err)
 		}
-		fmt.Printf("Successfully added to sticker set @%s\n", set.Set.ShortName)
+		fmt.Printf("Successfully added sticker to set @%s\n", set.Set.ShortName)
 
 		return nil
 	})
@@ -136,11 +137,6 @@ func (p *app) stickerCreateCmd(c *cli.Context) error {
 			return errors.New("no file name provided")
 		}
 
-		me, err := client.Self(ctx)
-		if err != nil {
-			return xerrors.Errorf("get self: %w", err)
-		}
-
 		owner, err := sender.Resolve(c.String("owner")).AsInputUser(ctx)
 		if err != nil {
 			return xerrors.Errorf("resolve owner: %w", err)
@@ -158,7 +154,7 @@ func (p *app) stickerCreateCmd(c *cli.Context) error {
 			Title:    c.String("title"),
 			// It must begin with a letter, can’t contain consecutive underscores and must end in ‘_by_<bot username>’.
 			// See https://docs.pyrogram.org/api/errors/bad-request#:~:text=PACK_SHORT_NAME_INVALID
-			ShortName: c.String("sticker-set") + "_by_" + me.Username,
+			ShortName: c.String("sticker-set"),
 			Stickers: []tg.InputStickerSetItem{
 				{
 					Document: doc.AsInput(),
@@ -172,6 +168,62 @@ func (p *app) stickerCreateCmd(c *cli.Context) error {
 
 		fmt.Printf(
 			"Successfully created sticker set @%s\nTo add: https://t.me/addstickers/%[1]s",
+			set.Set.ShortName,
+		)
+
+		return nil
+	})
+}
+
+func (p *app) stickerRemoveFlags() []cli.Flag {
+	return append([]cli.Flag{
+		&cli.IntFlag{
+			Name:     "n",
+			Required: true,
+			Usage:    "Index of sticker to delete",
+		},
+		&cli.StringFlag{
+			Name:  "download",
+			Usage: "Output path to download sticker before deletion",
+		},
+	}, p.stickerCmdFlags()...)
+}
+
+func (p *app) stickerRemoveCmd(c *cli.Context) error {
+	return p.run(c.Context, func(ctx context.Context, client *telegram.Client) error {
+		api := client.API()
+
+		set, err := api.MessagesGetStickerSet(ctx, &tg.InputStickerSetShortName{
+			ShortName: c.String("sticker-set"),
+		})
+		if err != nil {
+			return xerrors.Errorf("get sticker set: %w", err)
+		}
+
+		idx := c.Int("n")
+		if length := len(set.Documents); idx < 0 || length <= idx {
+			return xerrors.Errorf("index is too big, there are only %d stickers", length)
+		}
+
+		doc, ok := set.Documents[idx].AsNotEmpty()
+		if !ok {
+			return xerrors.Errorf("unexpected document type %T", set.Documents[idx])
+		}
+
+		if path := c.String("download"); c.IsSet("download") {
+			if _, err := downloader.NewDownloader().
+				Download(api, doc.AsInputDocumentFileLocation()).
+				ToPath(ctx, path); err != nil {
+				return xerrors.Errorf("download to %q: %w", path, err)
+			}
+		}
+
+		_, err = api.StickersRemoveStickerFromSet(ctx, doc.AsInput())
+		if err != nil {
+			return xerrors.Errorf("delete sticker: %w", err)
+		}
+		fmt.Printf(
+			"Successfully remove sticker from set @%s\n",
 			set.Set.ShortName,
 		)
 

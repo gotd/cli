@@ -100,6 +100,17 @@ Example:
 						Flags:     p.stickerCreateFlags(),
 						Action:    p.stickerCreateCmd,
 					},
+					{
+						Name:  "remove",
+						Usage: "Deletes sticker from set",
+						Description: `Command remove deletes sticker from set
+Example:
+	# Delete first sticker
+	tg sticker remove --set="memestickers" -n 0
+`,
+						Flags:  p.stickerRemoveFlags(),
+						Action: p.stickerRemoveCmd,
+					},
 				},
 			},
 		},
