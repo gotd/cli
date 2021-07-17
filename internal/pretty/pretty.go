@@ -9,11 +9,26 @@ import (
 
 	"github.com/gotd/td/bin"
 	"github.com/gotd/td/tdp"
+	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/tg"
 )
 
-type Invoker struct {
-	Next tg.Invoker
+// Middleware pretty-prints request and response.
+func Middleware() telegram.MiddlewareFunc {
+	return func(next tg.Invoker) telegram.InvokeFunc {
+		return func(ctx context.Context, input bin.Encoder, output bin.Decoder) error {
+			fmt.Println("→", formatObject(input))
+			start := time.Now()
+			if err := next.Invoke(ctx, input, output); err != nil {
+				fmt.Println("←", err)
+				return err
+			}
+
+			fmt.Printf("← (%s) %s\n", time.Since(start).Round(time.Millisecond), formatObject(output))
+
+			return nil
+		}
+	}
 }
 
 func formatObject(input interface{}) string {
@@ -30,17 +45,4 @@ func formatObject(input interface{}) string {
 		return fmt.Sprintf("%T (not object)", input)
 	}
 	return tdp.Format(o)
-}
-
-func (i Invoker) InvokeRaw(ctx context.Context, input bin.Encoder, output bin.Decoder) error {
-	fmt.Println("→", formatObject(input))
-	start := time.Now()
-	if err := i.Next.InvokeRaw(ctx, input, output); err != nil {
-		fmt.Println("←", err)
-		return err
-	}
-
-	fmt.Printf("← (%s) %s\n", time.Since(start).Round(time.Millisecond), formatObject(output))
-
-	return nil
 }

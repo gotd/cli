@@ -14,7 +14,7 @@ import (
 	"golang.org/x/xerrors"
 	"gopkg.in/yaml.v3"
 
-	"github.com/gotd/td/middleware/floodwait"
+	"github.com/gotd/contrib/middleware/floodwait"
 	"github.com/gotd/td/session"
 	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/telegram/dcs"
@@ -24,11 +24,12 @@ import (
 )
 
 type app struct {
-	cfg  Config
-	log  *zap.Logger
-	opts telegram.Options
+	cfg    Config
+	log    *zap.Logger
+	waiter *floodwait.Waiter
 
-	debugInvoker bool
+	opts  telegram.Options
+	debug bool
 }
 
 func newApp() *app {
@@ -41,49 +42,54 @@ func newApp() *app {
 		panic(err)
 	}
 
+	waiter := floodwait.NewWaiter()
+
 	return &app{
-		log: defaultLog,
+		waiter: waiter,
+		log:    defaultLog,
 		opts: telegram.Options{
+			Middlewares: []telegram.Middleware{
+				waiter,
+			},
 			NoUpdates: true,
 		},
 	}
 }
 
 func (p *app) run(ctx context.Context, f func(ctx context.Context, api *tg.Client) error) error {
+	if p.debug {
+		p.opts.Middlewares = append(p.opts.Middlewares, pretty.Middleware())
+	}
+
 	client := telegram.NewClient(p.cfg.AppID, p.cfg.AppHash, p.opts)
 
-	return client.Run(ctx, func(ctx context.Context) error {
-		s, err := client.AuthStatus(ctx)
-		if err != nil {
-			return xerrors.Errorf("check auth status: %w", err)
-		}
-		if !s.Authorized {
-			if _, err := client.AuthBot(ctx, p.cfg.BotToken); err != nil {
+	ctx, cancel := context.WithCancel(ctx)
+	g, ctx := errgroup.WithContext(ctx)
+
+	g.Go(func() error {
+		return p.waiter.Run(ctx)
+	})
+	g.Go(func() error {
+		defer cancel()
+		return client.Run(ctx, func(ctx context.Context) error {
+			s, err := client.Auth().Status(ctx)
+			if err != nil {
 				return xerrors.Errorf("check auth status: %w", err)
 			}
-		}
-
-		ctx, cancel := context.WithCancel(ctx)
-		g, ctx := errgroup.WithContext(ctx)
-
-		invoker := floodwait.NewWaiter(client)
-		g.Go(func() error {
-			return invoker.Run(ctx)
-		})
-		g.Go(func() error {
-			defer cancel()
-			var i tg.Invoker = invoker
-			if p.debugInvoker {
-				i = pretty.Invoker{Next: i}
+			if !s.Authorized {
+				if _, err := client.Auth().Bot(ctx, p.cfg.BotToken); err != nil {
+					return xerrors.Errorf("check auth status: %w", err)
+				}
 			}
-			return f(ctx, tg.NewClient(i))
+			return f(ctx, tg.NewClient(client))
 		})
-
-		if err := g.Wait(); !errors.Is(err, context.Canceled) {
-			return err
-		}
-		return nil
 	})
+
+	if err := g.Wait(); !errors.Is(err, context.Canceled) {
+		return err
+	}
+
+	return nil
 }
 
 func (p *app) Before(c *cli.Context) error {
@@ -118,10 +124,10 @@ func (p *app) Before(c *cli.Context) error {
 		Path: filepath.Join(filepath.Dir(cfgPath), sessionName),
 	}
 	if c.Bool("test") {
-		p.opts.DCList = dcs.StagingDCs()
+		p.opts.DCList = dcs.Staging()
 	}
 	if c.Bool("debug-invoker") {
-		p.debugInvoker = true
+		p.debug = true
 	}
 
 	return nil
