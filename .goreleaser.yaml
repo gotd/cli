@@ -30,7 +30,6 @@ changelog:
       - '^test:'
 nfpms:
   - package_name: tg
-    vendor: VK
     homepage: https://github.com/gotd/cli
     maintainer: Aleksandr Razumov <ernado@ya.ru>
     description: Command line interface for Telegram using gotd
