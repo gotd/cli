@@ -1,5 +1,6 @@
 # This is an example .goreleaser.yml file with some sensible defaults.
 # Make sure to check the documentation at https://goreleaser.com
+project_name: tg
 before:
   hooks:
     # You may remove this if you don't use go modules.
@@ -13,6 +14,9 @@ builds:
       - linux
       - windows
       - darwin
+    goarch:
+      - amd64
+      - arm64
     main: ./cmd/tg
 checksum:
   name_template: 'checksums.txt'
@@ -24,3 +28,14 @@ changelog:
     exclude:
       - '^chore(dep):'
       - '^test:'
+nfpms:
+  - package_name: tg
+    vendor: VK
+    homepage: https://github.com/gotd/cli
+    maintainer: Aleksandr Razumov <ernado@ya.ru>
+    description: Command line interface for Telegram using gotd
+    license: MIT
+    formats:
+      - apk
+      - deb
+      - rpm
