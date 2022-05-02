@@ -13,6 +13,7 @@ builds:
       - linux
       - windows
       - darwin
+    main: ./cmd/tg
 checksum:
   name_template: 'checksums.txt'
 snapshot:
