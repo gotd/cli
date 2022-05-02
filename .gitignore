@@ -16,3 +16,5 @@
 *.iml
 out
 gen
+
+dist/
