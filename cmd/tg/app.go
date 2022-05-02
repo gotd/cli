@@ -103,7 +103,7 @@ func (p *app) Before(c *cli.Context) error {
 		return xerrors.Errorf("no config path provided")
 	}
 
-	data, err := os.ReadFile(cfgPath)
+	data, err := os.ReadFile(cfgPath) // #nosec G304 // path provided via flag
 	if err != nil {
 		return err
 	}

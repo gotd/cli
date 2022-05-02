@@ -47,11 +47,11 @@ func writeConfig(cfgPath string, cfg Config) error {
 		return xerrors.Errorf("file %s exist", cfgPath)
 	}
 
-	if err := os.MkdirAll(filepath.Dir(cfgPath), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(cfgPath), 0o700); err != nil {
 		return err
 	}
 
-	if err := os.WriteFile(cfgPath, buf.Bytes(), 0600); err != nil {
+	if err := os.WriteFile(cfgPath, buf.Bytes(), 0o600); err != nil {
 		return xerrors.Errorf("write: %w", err)
 	}
 
