@@ -124,7 +124,7 @@ func (p *app) Before(c *cli.Context) error {
 		Path: filepath.Join(filepath.Dir(cfgPath), sessionName),
 	}
 	if c.Bool("test") {
-		p.opts.DCList = dcs.Staging()
+		p.opts.DCList = dcs.Test()
 	}
 	if c.Bool("debug-invoker") {
 		p.debug = true
