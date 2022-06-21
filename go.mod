@@ -7,7 +7,7 @@ require (
 	github.com/gotd/contrib v0.12.0
 	github.com/gotd/td v0.60.0
 	github.com/schollz/progressbar/v3 v3.8.6
-	github.com/urfave/cli/v2 v2.8.1
+	github.com/urfave/cli/v2 v2.10.2
 	go.uber.org/zap v1.21.0
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
@@ -16,7 +16,7 @@ require (
 
 require (
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
-	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
+	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/go-faster/errors v0.6.1 // indirect
 	github.com/go-faster/jx v0.35.2 // indirect
 	github.com/go-faster/xor v0.3.0 // indirect
