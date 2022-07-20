@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/gabriel-vasile/mimetype v1.4.1
 	github.com/gotd/contrib v0.12.0
-	github.com/gotd/td v0.60.0
+	github.com/gotd/td v0.61.0
 	github.com/schollz/progressbar/v3 v3.8.7
 	github.com/urfave/cli/v2 v2.11.1
 	go.uber.org/zap v1.21.0
@@ -18,11 +18,11 @@ require (
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/go-faster/errors v0.6.1 // indirect
-	github.com/go-faster/jx v0.35.2 // indirect
+	github.com/go-faster/jx v0.38.0 // indirect
 	github.com/go-faster/xor v0.3.0 // indirect
 	github.com/gotd/ige v0.2.2 // indirect
 	github.com/gotd/neo v0.1.5 // indirect
-	github.com/klauspost/compress v1.15.6 // indirect
+	github.com/klauspost/compress v1.15.7 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
