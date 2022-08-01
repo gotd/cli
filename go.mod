@@ -6,7 +6,7 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.1
 	github.com/gotd/contrib v0.13.0
 	github.com/gotd/td v0.62.0
-	github.com/schollz/progressbar/v3 v3.8.7
+	github.com/schollz/progressbar/v3 v3.9.0
 	github.com/urfave/cli/v2 v2.11.1
 	go.uber.org/zap v1.21.0
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
