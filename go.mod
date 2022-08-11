@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/gabriel-vasile/mimetype v1.4.1
 	github.com/gotd/contrib v0.13.0
-	github.com/gotd/td v0.65.0
+	github.com/gotd/td v0.66.0
 	github.com/schollz/progressbar/v3 v3.9.0
 	github.com/urfave/cli/v2 v2.11.1
 	go.uber.org/zap v1.22.0
@@ -18,7 +18,7 @@ require (
 	github.com/cenkalti/backoff/v4 v4.1.3 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
 	github.com/go-faster/errors v0.6.1 // indirect
-	github.com/go-faster/jx v0.38.1 // indirect
+	github.com/go-faster/jx v0.39.0 // indirect
 	github.com/go-faster/xor v0.3.0 // indirect
 	github.com/gotd/ige v0.2.2 // indirect
 	github.com/gotd/neo v0.1.5 // indirect
