@@ -25,7 +25,7 @@ jobs:
           echo "::set-output name=modcache::$(go env GOMODCACHE)"
 
       - name: Set up cache
-        uses: actions/cache@v3.0.7
+        uses: actions/cache@v3.0.8
         with:
           path: |
             ${{ steps.go-env.outputs.cache }}
