@@ -7,7 +7,7 @@ require (
 	github.com/gotd/contrib v0.13.0
 	github.com/gotd/td v0.70.1
 	github.com/schollz/progressbar/v3 v3.11.0
-	github.com/urfave/cli/v2 v2.20.3
+	github.com/urfave/cli/v2 v2.23.5
 	go.uber.org/zap v1.23.0
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
