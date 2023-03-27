@@ -6,7 +6,7 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.1
 	github.com/gotd/contrib v0.13.0
 	github.com/gotd/td v0.79.0
-	github.com/schollz/progressbar/v3 v3.11.0
+	github.com/schollz/progressbar/v3 v3.13.1
 	github.com/urfave/cli/v2 v2.23.5
 	go.uber.org/zap v1.24.0
 	golang.org/x/sync v0.1.0
@@ -23,7 +23,7 @@ require (
 	github.com/gotd/ige v0.2.2 // indirect
 	github.com/gotd/neo v0.1.5 // indirect
 	github.com/klauspost/compress v1.16.0 // indirect
-	github.com/mattn/go-runewidth v0.0.13 // indirect
+	github.com/mattn/go-runewidth v0.0.14 // indirect
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
 	github.com/rivo/uniseg v0.3.4 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
