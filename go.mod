@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/gabriel-vasile/mimetype v1.4.1
-	github.com/gotd/contrib v0.13.0
+	github.com/gotd/contrib v0.15.0
 	github.com/gotd/td v0.79.0
 	github.com/schollz/progressbar/v3 v3.13.1
 	github.com/urfave/cli/v2 v2.25.1
