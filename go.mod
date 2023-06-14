@@ -9,7 +9,7 @@ require (
 	github.com/schollz/progressbar/v3 v3.13.1
 	github.com/urfave/cli/v2 v2.25.6
 	go.uber.org/zap v1.24.0
-	golang.org/x/sync v0.2.0
+	golang.org/x/sync v0.3.0
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 	gopkg.in/yaml.v3 v3.0.1
 )
