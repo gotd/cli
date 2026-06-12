@@ -1,38 +1,35 @@
 package main
 
 import (
-	"flag"
 	"strings"
 
-	"github.com/urfave/cli/v2"
-	"golang.org/x/xerrors"
+	"github.com/go-faster/errors"
 )
 
-// EnumFlag is a simple wrapper for StringFlag to make a string enum flag.
-type EnumFlag struct {
-	cli.StringFlag
-	Allowed []string
+// enumValue is a pflag.Value that only accepts one of a fixed set of strings.
+// It powers both validation and shell completion for enum-style flags.
+type enumValue struct {
+	value   string
+	allowed []string
 }
 
-// GetUsage returns the usage string for the flag
-func (e *EnumFlag) GetUsage() string {
-	return e.Usage + "(" + "allowed: " + strings.Join(e.Allowed, ", ") + ")"
+func newEnumValue(def string, allowed ...string) *enumValue {
+	return &enumValue{value: def, allowed: allowed}
 }
 
-// Apply implements cli.Flag.
-func (e *EnumFlag) Apply(set *flag.FlagSet) error {
-	if err := e.StringFlag.Apply(set); err != nil {
-		return err
-	}
+// String implements pflag.Value.
+func (e *enumValue) String() string { return e.value }
 
-	if !e.HasBeenSet {
-		return nil
-	}
-
-	for i := range e.Allowed {
-		if e.Value == e.Allowed[i] {
+// Set implements pflag.Value.
+func (e *enumValue) Set(v string) error {
+	for _, a := range e.allowed {
+		if v == a {
+			e.value = v
 			return nil
 		}
 	}
-	return xerrors.Errorf("allowed values are %s", strings.Join(e.Allowed, ", "))
+	return errors.Errorf("must be one of: %s", strings.Join(e.allowed, ", "))
 }
+
+// Type implements pflag.Value.
+func (e *enumValue) Type() string { return "string" }

@@ -3,37 +3,63 @@ package main
 import (
 	"context"
 
-	"github.com/urfave/cli/v2"
-	"golang.org/x/xerrors"
+	"github.com/go-faster/errors"
+	"github.com/spf13/cobra"
 
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/tg"
 )
 
-func (p *app) sendFlags() []cli.Flag {
-	return append([]cli.Flag{
-		&cli.StringFlag{
-			Name:    "peer",
-			Aliases: []string{"p", "target"},
-			Usage:   "peer to write (e.g. channel name or username, phone number or deep link)",
+func (a *app) newSendCmd() *cobra.Command {
+	var (
+		peer string
+		msg  messageOptions
+	)
+
+	cmd := &cobra.Command{
+		Use:     "send [flags] [text]",
+		Short:   "Send a message to a peer",
+		GroupID: groupMessaging,
+		Long: `Send a text message. With no --peer, the message goes to your own
+Saved Messages, which is handy for notes and agent self-messaging.`,
+		Example: `  # Message yourself (Saved Messages)
+  tg send "hello"
+
+  # Message a channel or user
+  tg send --peer @durov "hi there"
+
+  # HTML formatting, sent silently
+  tg send --peer @durov --html --silent "<b>bold</b>"`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var text string
+			if len(args) > 0 {
+				text = args[0]
+			}
+
+			return a.run(cmd.Context(), func(ctx context.Context, api *tg.Client) error {
+				sender := message.NewSender(api)
+
+				builder := sender.Self()
+				if peer != "" {
+					builder = sender.Resolve(peer)
+				}
+
+				b, options := msg.apply(builder, text)
+				if _, err := b.StyledText(ctx, options...); err != nil {
+					return errors.Wrap(err, "send")
+				}
+
+				return nil
+			})
 		},
-	}, messageFlags()...)
-}
+	}
 
-func (p *app) sendCmd(c *cli.Context) error {
-	return p.run(c.Context, func(ctx context.Context, api *tg.Client) error {
-		sender := message.NewSender(api)
+	fs := cmd.Flags()
+	fs.StringVarP(&peer, "peer", "p", "",
+		"peer to write (channel name or username, phone number or deep link); default: yourself")
+	msg.register(fs)
+	registerPeerCompletion(cmd, "peer")
 
-		builder := sender.Self()
-		if targetDomain := c.String("peer"); targetDomain != "" {
-			builder = sender.Resolve(targetDomain)
-		}
-
-		b, options := applyMessageFlags(c, builder, c.Args().First())
-		if _, err := b.StyledText(ctx, options...); err != nil {
-			return xerrors.Errorf("send: %w", err)
-		}
-
-		return nil
-	})
+	return cmd
 }
