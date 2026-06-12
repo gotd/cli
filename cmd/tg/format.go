@@ -4,6 +4,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-faster/errors"
+
 	"github.com/gotd/td/telegram/message/peer"
 	"github.com/gotd/td/tg"
 )
@@ -62,6 +64,47 @@ func describePeer(p tg.PeerClass, ent peer.Entities) peerRef {
 	default:
 		return peerRef{Type: peerUnknown}
 	}
+}
+
+// entitiesOf builds peer.Entities from user/chat lists in an RPC response.
+func entitiesOf(users []tg.UserClass, chats []tg.ChatClass) peer.Entities {
+	return peer.NewEntities(
+		tg.UserClassArray(users).UserToMap(),
+		tg.ChatClassArray(chats).ChatToMap(),
+		tg.ChatClassArray(chats).ChannelToMap(),
+	)
+}
+
+// messagesFrom extracts the messages and entities from a messages RPC response.
+func messagesFrom(res tg.MessagesMessagesClass) ([]tg.MessageClass, peer.Entities, error) {
+	mod, ok := res.AsModified()
+	if !ok {
+		return nil, peer.Entities{}, errors.Errorf("unexpected messages type %T", res)
+	}
+	return mod.GetMessages(), entitiesOf(mod.GetUsers(), mod.GetChats()), nil
+}
+
+// buildMessageItem maps a raw message to a messageItem using entities for names.
+func buildMessageItem(msg *tg.Message, ent peer.Entities) messageItem {
+	item := messageItem{
+		ID:   msg.ID,
+		Date: msg.Date,
+		Out:  msg.Out,
+		Text: msg.Message,
+	}
+	if media, ok := msg.GetMedia(); ok {
+		item.Media = mediaType(media)
+	}
+	if from, ok := msg.GetFromID(); ok {
+		ref := describePeer(from, ent)
+		item.From = &ref
+	}
+	if rt, ok := msg.GetReplyTo(); ok {
+		if h, ok := rt.(*tg.MessageReplyHeader); ok {
+			item.ReplyTo = h.ReplyToMsgID
+		}
+	}
+	return item
 }
 
 // mediaType returns a short lowercase name for a message media, e.g. "photo".

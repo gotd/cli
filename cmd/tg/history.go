@@ -66,34 +66,15 @@ func listHistory(ctx context.Context, api *tg.Client, peer tg.InputPeerClass, li
 		if len(res.Messages) >= limit {
 			break
 		}
-		msg, ok := iter.Value().Msg.(*tg.Message)
+		elem := iter.Value()
+		msg, ok := elem.Msg.(*tg.Message)
 		if !ok {
 			continue
 		}
-		ent := iter.Value().Entities
-
-		item := messageItem{
-			ID:   msg.ID,
-			Date: msg.Date,
-			Out:  msg.Out,
-			Text: msg.Message,
-		}
-		if media, ok := msg.GetMedia(); ok {
-			item.Media = mediaType(media)
-		}
-		if from, ok := msg.GetFromID(); ok {
-			ref := describePeer(from, ent)
-			item.From = &ref
-		}
-		if rt, ok := msg.GetReplyTo(); ok {
-			if h, ok := rt.(*tg.MessageReplyHeader); ok {
-				item.ReplyTo = h.ReplyToMsgID
-			}
-		}
 		if res.Peer.Type == "" {
-			res.Peer = describePeer(msg.PeerID, ent)
+			res.Peer = describePeer(msg.PeerID, elem.Entities)
 		}
-		res.Messages = append(res.Messages, item)
+		res.Messages = append(res.Messages, buildMessageItem(msg, elem.Entities))
 	}
 	if err := iter.Err(); err != nil {
 		return historyResult{}, errors.Wrap(err, "iterate history")
