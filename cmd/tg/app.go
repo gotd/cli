@@ -10,11 +10,11 @@ import (
 
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
-	"golang.org/x/sync/errgroup"
 	"golang.org/x/xerrors"
 	"gopkg.in/yaml.v3"
 
 	"github.com/gotd/contrib/middleware/floodwait"
+	"github.com/gotd/log/logzap"
 	"github.com/gotd/td/session"
 	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/telegram/dcs"
@@ -63,14 +63,7 @@ func (p *app) run(ctx context.Context, f func(ctx context.Context, api *tg.Clien
 
 	client := telegram.NewClient(p.cfg.AppID, p.cfg.AppHash, p.opts)
 
-	ctx, cancel := context.WithCancel(ctx)
-	g, ctx := errgroup.WithContext(ctx)
-
-	g.Go(func() error {
-		return p.waiter.Run(ctx)
-	})
-	g.Go(func() error {
-		defer cancel()
+	if err := p.waiter.Run(ctx, func(ctx context.Context) error {
 		return client.Run(ctx, func(ctx context.Context) error {
 			s, err := client.Auth().Status(ctx)
 			if err != nil {
@@ -83,9 +76,7 @@ func (p *app) run(ctx context.Context, f func(ctx context.Context, api *tg.Clien
 			}
 			return f(ctx, tg.NewClient(client))
 		})
-	})
-
-	if err := g.Wait(); !errors.Is(err, context.Canceled) {
+	}); !errors.Is(err, context.Canceled) {
 		return err
 	}
 
@@ -119,7 +110,7 @@ func (p *app) Before(c *cli.Context) error {
 	// Default to same directory (near with config).
 	// Probably there is better way to handle this.
 	sessionName := fmt.Sprintf("gotd.session.%x.json", md5.Sum([]byte(p.cfg.BotToken))) // #nosec
-	p.opts.Logger = p.log.Named("tg")
+	p.opts.Logger = logzap.New(p.log.Named("tg"))
 	p.opts.SessionStorage = &session.FileStorage{
 		Path: filepath.Join(filepath.Dir(cfgPath), sessionName),
 	}
