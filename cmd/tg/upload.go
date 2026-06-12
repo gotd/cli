@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -19,8 +20,11 @@ import (
 	"github.com/gotd/td/clock"
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/telegram/message/styling"
+	"github.com/gotd/td/telegram/message/unpack"
 	"github.com/gotd/td/telegram/uploader"
 	"github.com/gotd/td/tg"
+
+	"github.com/gotd/cli/internal/output"
 )
 
 // uploadFlags are the parsed flag values for the upload command.
@@ -31,6 +35,27 @@ type uploadFlags struct {
 	docType  *enumValue
 	threads  int
 	msg      messageOptions
+}
+
+// uploadedFile is one uploaded file in an uploadResult.
+type uploadedFile struct {
+	Path      string `json:"path"`
+	MessageID int    `json:"message_id"`
+}
+
+// uploadResult is the result of `tg upload`.
+type uploadResult struct {
+	Files []uploadedFile `json:"files"`
+}
+
+// MarshalText renders one uploaded file per line.
+func (r uploadResult) MarshalText(w io.Writer) error {
+	for _, f := range r.Files {
+		if _, err := fmt.Fprintf(w, "uploaded %s as message #%d\n", f.Path, f.MessageID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // documentTypes are the allowed values of the --type flag.
@@ -135,10 +160,11 @@ func (a *app) uploadOne(
 	builder *message.RequestBuilder,
 	path string,
 	info fs.FileInfo,
-) error {
+	quiet bool,
+) (int, error) {
 	f, err := os.Open(filepath.Clean(path)) // #nosec G304 // path comes from user-provided upload target
 	if err != nil {
-		return errors.Wrapf(err, "open %q", path)
+		return 0, errors.Wrapf(err, "open %q", path)
 	}
 	defer func() {
 		_ = f.Close()
@@ -146,24 +172,35 @@ func (a *app) uploadOne(
 
 	m, err := detectMIME(f)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	fileName := filepath.Base(path)
-	bar := progressbar.DefaultBytes(info.Size(), "upload "+fileName)
 
 	uploadFileName := fileName
 	if uf.filename != "" {
 		uploadFileName = uf.filename
 	}
-	upload := uploader.NewUpload(uploadFileName, io.TeeReader(f, bar), info.Size())
+
+	// In machine mode, suppress the progress bar and typing action; otherwise
+	// render a progress bar to stderr and report a typing action.
+	var reader io.Reader = f
+	var bar *progressbar.ProgressBar
+	if !quiet {
+		bar = progressbar.DefaultBytes(info.Size(), "upload "+fileName)
+		reader = io.TeeReader(f, bar)
+	}
+	upload := uploader.NewUpload(uploadFileName, reader, info.Size())
 
 	g, ctx := errgroup.WithContext(ctx)
 	done := make(chan struct{})
-	g.Go(func() error {
-		return a.updateStatus(ctx, done, builder, bar)
-	})
+	if bar != nil {
+		g.Go(func() error {
+			return a.updateStatus(ctx, done, builder, bar)
+		})
+	}
 
+	var msgID int
 	g.Go(func() error {
 		defer close(done)
 
@@ -173,14 +210,18 @@ func (a *app) uploadOne(
 		}
 
 		b, options := uf.msg.apply(builder, uf.message)
-		if _, err := b.Media(ctx, prepareFile(uf, fileInput, options, fileName, m.String())); err != nil {
+		id, err := unpack.MessageID(b.Media(ctx, prepareFile(uf, fileInput, options, fileName, m.String())))
+		if err != nil {
 			return errors.Wrapf(err, "send %q", path)
 		}
-
+		msgID = id
 		return nil
 	})
 
-	return g.Wait()
+	if err := g.Wait(); err != nil {
+		return 0, err
+	}
+	return msgID, nil
 }
 
 func (a *app) newUploadCmd() *cobra.Command {
@@ -217,18 +258,25 @@ The document type is detected from the file's MIME type unless --type is set.`,
 				}
 				sender = sender.WithUploader(upld)
 
-				builder := sender.Self()
-				if uf.peer != "" {
-					builder = sender.Resolve(uf.peer)
-				}
+				builder := builderFor(sender, uf.peer)
+				quiet := a.printer.Format() == output.JSON
 
-				return filepath.Walk(arg, func(path string, info fs.FileInfo, err error) error {
+				var result uploadResult
+				if err := filepath.Walk(arg, func(path string, info fs.FileInfo, err error) error {
 					// Stop if got error, skip if current file is directory.
 					if info.IsDir() || err != nil {
 						return err
 					}
-					return a.uploadOne(ctx, uf, upld, builder, path, info)
-				})
+					id, err := a.uploadOne(ctx, uf, upld, builder, path, info, quiet)
+					if err != nil {
+						return err
+					}
+					result.Files = append(result.Files, uploadedFile{Path: path, MessageID: id})
+					return nil
+				}); err != nil {
+					return err
+				}
+				return a.printer.Emit(result)
 			})
 		},
 	}

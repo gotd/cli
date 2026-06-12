@@ -110,15 +110,15 @@ These cut across every feature and matter as much as the features themselves:
 
 These directly cover "upload files to myself, list chats, mark chats as read, replies".
 
-- [ ] `tg chats list` — list dialogs (paged), with unread counts, pinned/muted/archived
+- [x] `tg chats list` — list dialogs (paged), with unread counts, pinned/muted/archived
       flags, last message preview.
-- [ ] `tg messages list <peer>` / `tg history <peer>` — read recent messages.
-- [ ] `tg send <peer> <text>` — already exists; extend to default `me` and JSON output.
-- [ ] `tg reply <peer> <message-id> <text>` — reply to a specific message.
-- [ ] `tg read <peer>` — mark a chat as read.
-- [ ] `tg upload` to `me` / Saved Messages — already exists; ensure `me` peer + JSON +
+- [x] `tg messages list <peer>` / `tg history <peer>` — read recent messages.
+- [x] `tg send <peer> <text>` — already exists; extend to default `me` and JSON output.
+- [x] `tg reply <peer> <message-id> <text>` — reply to a specific message.
+- [x] `tg read <peer>` — mark a chat as read.
+- [x] `tg upload` to `me` / Saved Messages — already exists; ensure `me` peer + JSON +
       silent progress.
-- [ ] `tg download <peer> <message-id> [--out path]` — download media.
+- [x] `tg download <peer> <message-id> [--out path]` — download media.
 
 ### Phase 2 — Messaging depth
 
