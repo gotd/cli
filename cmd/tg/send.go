@@ -6,7 +6,6 @@ import (
 	"github.com/go-faster/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/tg"
 )
 
@@ -38,7 +37,10 @@ Saved Messages, which is handy for notes and agent self-messaging.`,
 			}
 
 			return a.run(cmd.Context(), runParams{auth: authUser}, func(ctx context.Context, api *tg.Client) error {
-				sender := message.NewSender(api)
+				sender, err := a.sender(api, authUser)
+				if err != nil {
+					return err
+				}
 
 				builder := sender.Self()
 				if peer != "" {

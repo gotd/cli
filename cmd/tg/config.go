@@ -69,7 +69,17 @@ func writeConfig(path string, cfg Config) error {
 // from the config location and app credentials so user and bot sessions never
 // collide.
 func (c Config) sessionPath(dir, kind string) string {
-	seed := fmt.Sprintf("%d:%s:%s", c.AppID, kind, c.BotToken)
-	name := fmt.Sprintf("gotd.session.%s.%x.json", kind, md5.Sum([]byte(seed))) // #nosec G401
-	return filepath.Join(dir, name)
+	return filepath.Join(dir, fmt.Sprintf("gotd.session.%s.%s.json", kind, c.seed(kind)))
+}
+
+// peerCachePath returns the access-hash cache path for the given auth kind,
+// kept beside the session file.
+func (c Config) peerCachePath(dir, kind string) string {
+	return filepath.Join(dir, fmt.Sprintf("gotd.peers.%s.%s.json", kind, c.seed(kind)))
+}
+
+// seed returns a stable per-account filename fragment.
+func (c Config) seed(kind string) string {
+	s := fmt.Sprintf("%d:%s:%s", c.AppID, kind, c.BotToken)
+	return fmt.Sprintf("%x", md5.Sum([]byte(s))) // #nosec G401 // filename only
 }
