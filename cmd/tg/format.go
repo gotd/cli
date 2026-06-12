@@ -109,6 +109,32 @@ func describePeer(p tg.PeerClass, ent peer.Entities) peerRef {
 	}
 }
 
+// extractChats returns the chats carried by an updates response.
+func extractChats(u tg.UpdatesClass) []tg.ChatClass {
+	switch v := u.(type) {
+	case *tg.Updates:
+		return v.Chats
+	case *tg.UpdatesCombined:
+		return v.Chats
+	default:
+		return nil
+	}
+}
+
+// firstChatRef returns a peerRef for the first chat/channel in an updates
+// response (e.g. a freshly created group).
+func firstChatRef(u tg.UpdatesClass) (peerRef, bool) {
+	for _, c := range extractChats(u) {
+		switch ch := c.(type) {
+		case *tg.Chat:
+			return peerRef{ID: ch.ID, Type: peerChat, Name: ch.Title}, true
+		case *tg.Channel:
+			return peerRef{ID: ch.ID, Type: peerChannel, Name: ch.Title, Username: ch.Username}, true
+		}
+	}
+	return peerRef{}, false
+}
+
 // entitiesOf builds peer.Entities from user/chat lists in an RPC response.
 func entitiesOf(users []tg.UserClass, chats []tg.ChatClass) peer.Entities {
 	return peer.NewEntities(

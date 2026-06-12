@@ -120,6 +120,13 @@ below apply to every command.`,
 		a.newSearchPublicCmd(),
 		a.newSubscribeCmd(),
 		a.newContactsCmd(),
+		a.newCreateGroupCmd(),
+		a.newCreateChannelCmd(),
+		a.newInviteCmd(),
+		a.newLeaveCmd(),
+		a.newParticipantsCmd(),
+		a.newAdminsCmd(),
+		a.newBannedCmd(),
 	)
 	root.AddCommand(newDocsCmd(root))
 
