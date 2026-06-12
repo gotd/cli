@@ -31,11 +31,17 @@ const (
 	authBot                  // bot token session
 )
 
+// Session kind names, used for session filenames and flags.
+const (
+	kindUser = "user"
+	kindBot  = "bot"
+)
+
 func (k authKind) String() string {
 	if k == authBot {
-		return "bot"
+		return kindBot
 	}
-	return "user"
+	return kindUser
 }
 
 // app holds shared state and the values of the global (persistent) flags.

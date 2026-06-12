@@ -78,6 +78,7 @@ below apply to every command.`,
 
 	root.AddCommand(
 		newInitCmd(a),
+		a.newWhoamiCmd(),
 		a.newSendCmd(),
 		a.newUploadCmd(),
 	)
