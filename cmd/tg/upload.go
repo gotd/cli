@@ -207,7 +207,7 @@ The document type is detected from the file's MIME type unless --type is set.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			arg := args[0]
 
-			return a.run(cmd.Context(), func(ctx context.Context, api *tg.Client) error {
+			return a.run(cmd.Context(), runParams{auth: authUser}, func(ctx context.Context, api *tg.Client) error {
 				upld := uploader.NewUploader(api).
 					WithThreads(uf.threads).
 					WithPartSize(uploader.MaximumPartSize)

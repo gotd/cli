@@ -12,7 +12,13 @@ func main() {
 	defer cancel()
 
 	if err := newRootCmd().ExecuteContext(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "%+v\n", err)
+		// Concise message by default; full chain + stack with TG_DEBUG for
+		// troubleshooting. All diagnostics go to stderr.
+		if os.Getenv("TG_DEBUG") != "" {
+			fmt.Fprintf(os.Stderr, "%+v\n", err)
+		} else {
+			fmt.Fprintf(os.Stderr, "tg: %v\n", err)
+		}
 		os.Exit(1)
 	}
 }

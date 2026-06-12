@@ -37,7 +37,7 @@ Saved Messages, which is handy for notes and agent self-messaging.`,
 				text = args[0]
 			}
 
-			return a.run(cmd.Context(), func(ctx context.Context, api *tg.Client) error {
+			return a.run(cmd.Context(), runParams{auth: authUser}, func(ctx context.Context, api *tg.Client) error {
 				sender := message.NewSender(api)
 
 				builder := sender.Self()

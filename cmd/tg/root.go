@@ -6,6 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+
+	"github.com/gotd/cli/internal/output"
 )
 
 // Command groups shown in `tg --help`.
@@ -63,8 +65,11 @@ below apply to every command.`,
 
 	pf := root.PersistentFlags()
 	pf.StringVarP(&a.configPath, "config", "c", defaultConfigPath(), "config file to use")
+	pf.StringVarP(&a.outputFormat, "output", "o", string(output.Text), "output format: text or json")
 	pf.BoolVar(&a.debugInvoker, "debug-invoker", false, "use pretty-printing debug invoker")
 	pf.BoolVar(&a.testServer, "test", false, "connect to the telegram test server")
+	_ = root.RegisterFlagCompletionFunc("output",
+		cobra.FixedCompletions(output.Formats(), cobra.ShellCompDirectiveNoFileComp))
 
 	root.AddGroup(
 		&cobra.Group{ID: groupAuth, Title: "Authentication & setup:"},
