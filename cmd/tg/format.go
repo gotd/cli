@@ -1,12 +1,15 @@
 package main
 
 import (
+	"fmt"
+	"io"
 	"strconv"
 	"strings"
 
 	"github.com/go-faster/errors"
 
 	"github.com/gotd/td/telegram/message/peer"
+	"github.com/gotd/td/telegram/peers"
 	"github.com/gotd/td/tg"
 )
 
@@ -24,6 +27,46 @@ type peerRef struct {
 	Type     string `json:"type"`
 	Name     string `json:"name,omitempty"`
 	Username string `json:"username,omitempty"`
+}
+
+// MarshalText renders a peer reference on one line.
+func (p peerRef) MarshalText(w io.Writer) error {
+	_, err := fmt.Fprintf(w, "%s\t%s\tid=%d\n", p.Type, p.label(), p.ID)
+	return err
+}
+
+// describeManagedPeer converts a resolved peers.Peer into a peerRef.
+func describeManagedPeer(p peers.Peer) peerRef {
+	ref := peerRef{ID: p.ID(), Name: p.VisibleName()}
+	if u, ok := p.Username(); ok {
+		ref.Username = u
+	}
+	switch p.(type) {
+	case peers.User:
+		ref.Type = peerUser
+	case peers.Chat:
+		ref.Type = peerChat
+	case peers.Channel:
+		ref.Type = peerChannel
+	default:
+		ref.Type = peerUnknown
+	}
+	return ref
+}
+
+// peerListResult is a list of peers (search results, etc.).
+type peerListResult struct {
+	Peers []peerRef `json:"peers"`
+}
+
+// MarshalText renders one peer per line.
+func (r peerListResult) MarshalText(w io.Writer) error {
+	for _, p := range r.Peers {
+		if err := p.MarshalText(w); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // label renders a peer reference for text output, e.g. "@durov" or "Some Group".

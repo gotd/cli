@@ -115,6 +115,9 @@ below apply to every command.`,
 		a.newUnmuteCmd(),
 		a.newArchiveCmd(),
 		a.newUnarchiveCmd(),
+		a.newResolveCmd(),
+		a.newSearchPublicCmd(),
+		a.newSubscribeCmd(),
 	)
 	root.AddCommand(newDocsCmd(root))
 
