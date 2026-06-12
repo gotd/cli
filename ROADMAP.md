@@ -159,7 +159,7 @@ These directly cover "upload files to myself, list chats, mark chats as read, re
 
 - [x] `tg watch <peer>` — stream new messages as JSON lines; the agent's input loop.
 - [x] `tg wait` — block until a new (or settled) incoming message, with timeout.
-- [ ] Backed by `gotd/td` update handlers; `NoUpdates: true` (set in `app.go` today) must
+- [x] Backed by `gotd/td` update handlers; `NoUpdates: true` (set in `app.go` today) must
       become conditional.
 
 ### Phase 7 — Multiple concurrent accounts
@@ -168,20 +168,20 @@ The `--account` selector (design principle 8) ships from Phase 0, but real multi
 several sessions usable, and **live simultaneously** — lands here: a `label -> client` map,
 an `--account <label>` selector, and a `tg accounts` listing.
 
-- [ ] **Config for N accounts**: named accounts in the config (or env
+- [x] **Config for N accounts**: named accounts in the config (or env
       `TG_SESSION_<LABEL>`), each with its own `session.FileStorage` file, peer-cache, and
       `floodwait.Waiter`. Keep a backward-compatible single "default" account.
-- [ ] **`tg accounts`** — list configured accounts + auth status.
-- [ ] **`tg login --account <label>`** — mint/refresh a session per label (QR or phone).
-- [ ] **Concurrent runtime**: hold a `map[label]*telegram.Client`, each running under its
+- [x] **`tg accounts`** — list configured accounts + auth status.
+- [x] **`tg login --account <label>`** — mint/refresh a session per label (QR or phone).
+- [x] **Concurrent runtime**: hold a `map[label]*telegram.Client`, each running under its
       own waiter; a command resolves `--account` to one client. Clients are independent and
       safe to run in parallel — one flood-wait or reconnect must not stall the others.
-- [ ] **Fan-out where it makes sense**: `--account all` (or repeated `--account`) for
+- [x] **Fan-out where it makes sense**: `--account all` (or repeated `--account`) for
       read/broadcast commands (e.g. `chats list`, `send`, `watch`) — results keyed by label
       in JSON. Strictly opt-in; single-account stays the default.
-- [ ] **Realtime across accounts**: Phase 6 `watch`/`wait` can observe multiple accounts
+- [x] **Realtime across accounts**: Phase 6 `watch`/`wait` can observe multiple accounts
       concurrently (one dispatcher + update loop per client), merged into one JSON stream.
-- [ ] **Per-account proxy**: per-label override of the global proxy (Phase 0), so each
+- [x] **Per-account proxy**: per-label override of the global proxy (Phase 0), so each
       account can route through its own SOCKS5/HTTP/MTProxy.
 
 ## Capability groups (reference)

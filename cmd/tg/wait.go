@@ -29,7 +29,7 @@ func (a *app) newWaitCmd() *cobra.Command {
 					if err := requireAuth(ctx, client); err != nil {
 						return err
 					}
-					filterID, err := a.resolveFilter(ctx, client.API(), args)
+					filterID, err := a.resolveFilterFor(ctx, client.API(), a.active, args)
 					if err != nil {
 						return err
 					}

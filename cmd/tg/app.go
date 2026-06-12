@@ -130,28 +130,14 @@ func (a *app) selectedLabels() ([]string, error) {
 	return []string{label}, nil
 }
 
-// activate resolves and installs the account state for label. When multi is set,
-// the account label is included in output.
+// activate resolves and installs the active account state for label. When multi
+// is set, the account label is included in output.
 func (a *app) activate(label string, multi bool) error {
-	acc, err := a.cfg.account(label)
+	st, err := a.accountState(label)
 	if err != nil {
 		return err
 	}
-	if !acc.configured() {
-		return errors.Errorf("account %q is not configured (run tg init or tg login --account %s)", label, label)
-	}
-
-	// Proxy precedence: --proxy flag / TG_PROXY env over the account's proxy.
-	proxyURL := a.proxyURL
-	if proxyURL == "" {
-		proxyURL = acc.Proxy
-	}
-	resolver, err := proxy.Resolver(proxyURL)
-	if err != nil {
-		return err
-	}
-
-	a.active = &accountState{label: label, acc: acc, resolver: resolver}
+	a.active = st
 	if multi {
 		a.printer.SetAccount(label)
 	}
@@ -195,8 +181,8 @@ type runParams struct {
 	authorize func(ctx context.Context, client *telegram.Client, d tg.UpdateDispatcher) error
 }
 
-// options builds telegram.Options for the given run parameters.
-func (a *app) options(rp runParams, d tg.UpdateDispatcher) telegram.Options {
+// optionsFor builds telegram.Options for a specific account state.
+func (a *app) optionsFor(st *accountState, rp runParams, d tg.UpdateDispatcher) telegram.Options {
 	mw := []telegram.Middleware{a.waiter}
 	if a.debug {
 		mw = append(mw, pretty.Middleware())
@@ -206,7 +192,7 @@ func (a *app) options(rp runParams, d tg.UpdateDispatcher) telegram.Options {
 		Logger:      logzap.New(a.log.Named("tg")),
 		Middlewares: mw,
 		SessionStorage: &session.FileStorage{
-			Path: a.active.acc.sessionPath(filepath.Dir(a.configPath), a.active.label, rp.auth.String()),
+			Path: st.acc.sessionPath(filepath.Dir(a.configPath), st.label, rp.auth.String()),
 		},
 	}
 	if rp.updates {
@@ -217,30 +203,27 @@ func (a *app) options(rp runParams, d tg.UpdateDispatcher) telegram.Options {
 	if a.testServer {
 		opts.DCList = dcs.Test()
 	}
-	if a.active.resolver != nil {
-		opts.Resolver = a.active.resolver
+	if st.resolver != nil {
+		opts.Resolver = st.resolver
 	}
 	return opts
 }
 
-// connect builds a client per rp and runs f with the raw (possibly
-// unauthorized) client inside the flood-wait + client run loop. The dispatcher
-// is non-nil only when rp.updates is set.
-func (a *app) connect(
+// connectWith builds a client for the given account state and runs f inside the
+// flood-wait + client run loop. The dispatcher is non-nil only when rp.updates
+// is set.
+func (a *app) connectWith(
 	ctx context.Context,
+	st *accountState,
 	rp runParams,
 	f func(ctx context.Context, client *telegram.Client, d tg.UpdateDispatcher) error,
 ) error {
-	if err := a.ensureActive(); err != nil {
-		return err
-	}
-
 	var d tg.UpdateDispatcher
 	if rp.updates {
 		d = tg.NewUpdateDispatcher()
 	}
 
-	client := telegram.NewClient(a.active.acc.AppID, a.active.acc.AppHash, a.options(rp, d))
+	client := telegram.NewClient(st.acc.AppID, st.acc.AppHash, a.optionsFor(st, rp, d))
 
 	if err := a.waiter.Run(ctx, func(ctx context.Context) error {
 		return client.Run(ctx, func(ctx context.Context) error {
@@ -250,6 +233,40 @@ func (a *app) connect(
 		return err
 	}
 	return nil
+}
+
+// connect builds a client for the active account and runs f. It activates a
+// single selected account if none is active yet.
+func (a *app) connect(
+	ctx context.Context,
+	rp runParams,
+	f func(ctx context.Context, client *telegram.Client, d tg.UpdateDispatcher) error,
+) error {
+	if err := a.ensureActive(); err != nil {
+		return err
+	}
+	return a.connectWith(ctx, a.active, rp, f)
+}
+
+// accountState resolves an account label into runtime state (without mutating
+// the shared active state), for concurrent multi-account use.
+func (a *app) accountState(label string) (*accountState, error) {
+	acc, err := a.cfg.account(label)
+	if err != nil {
+		return nil, err
+	}
+	if !acc.configured() {
+		return nil, errors.Errorf("account %q is not configured", label)
+	}
+	proxyURL := a.proxyURL
+	if proxyURL == "" {
+		proxyURL = acc.Proxy
+	}
+	resolver, err := proxy.Resolver(proxyURL)
+	if err != nil {
+		return nil, err
+	}
+	return &accountState{label: label, acc: acc, resolver: resolver}, nil
 }
 
 // run connects, ensures the session is authorized, and calls f with the API
