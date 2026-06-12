@@ -17,6 +17,9 @@ const (
 	groupChats     = "chats"
 )
 
+// cmdList is the common "list" subcommand verb.
+const cmdList = "list"
+
 func defaultConfigPath() string {
 	dir, err := os.UserConfigDir()
 	if err != nil {
@@ -141,6 +144,7 @@ below apply to every command.`,
 		a.newTopicsCmd(),
 		a.newRecentActionsCmd(),
 		a.newProfileCmd(),
+		a.newFoldersCmd(),
 	)
 	root.AddCommand(newDocsCmd(root))
 

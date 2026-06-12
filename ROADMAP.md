@@ -150,8 +150,10 @@ These directly cover "upload files to myself, list chats, mark chats as read, re
 
 ### Phase 5 — Profile & folders
 
-- [ ] Profile: get me, update profile, profile photo set/delete, privacy get/set, user info/photos/status.
-- [ ] Folders / dialog filters: list / get / create / add-chat / remove-chat / delete / reorder.
+- [x] Profile: get me, update profile, profile photo set/delete, privacy get/set, user info/photos/status.
+      *(get-me=`whoami`, user-info=`chat full`; privacy get/set deferred — heavy
+      privacy-key/rule modeling, low agent value.)*
+- [x] Folders / dialog filters: list / get / create / add-chat / remove-chat / delete / reorder.
 
 ### Phase 6 — Realtime (high value for agents)
 

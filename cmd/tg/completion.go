@@ -33,6 +33,11 @@ func peerArgCompletion(_ *cobra.Command, args []string, _ string) ([]string, cob
 		cobra.ShellCompDirectiveNoFileComp
 }
 
+// noFileComp disables file completion for positional args.
+func noFileComp(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+	return nil, cobra.ShellCompDirectiveNoFileComp
+}
+
 // registerEnumCompletion offers the allowed values of an enum flag.
 func registerEnumCompletion(cmd *cobra.Command, flag string, allowed []string) {
 	_ = cmd.RegisterFlagCompletionFunc(flag,

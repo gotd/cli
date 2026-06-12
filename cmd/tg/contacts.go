@@ -49,7 +49,7 @@ func (a *app) newContactsCmd() *cobra.Command {
 
 func (a *app) newContactsListCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:     "list",
+		Use:     cmdList,
 		Aliases: []string{"export"},
 		Short:   "List your contacts",
 		Args:    cobra.NoArgs,
