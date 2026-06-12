@@ -175,7 +175,7 @@ func (p *app) uploadCmd(c *cli.Context) error {
 				return err
 			}
 
-			f, err := os.Open(filepath.Clean(path))
+			f, err := os.Open(filepath.Clean(path)) // #nosec G122 // path comes from user-provided upload target
 			if err != nil {
 				return xerrors.Errorf("open %q: %w", path, err)
 			}

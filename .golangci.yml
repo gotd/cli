@@ -1,108 +1,101 @@
-linters-settings:
-  govet:
-    check-shadowing: true
-  gocyclo:
-    min-complexity: 15
-  maligned:
-    suggest-new: true
-  dupl:
-    threshold: 120
-  goconst:
-    min-len: 2
-    min-occurrences: 3
-  misspell:
-    locale: US
-  lll:
-    line-length: 140
-  goimports:
-    local-prefixes: github.com/gotd/
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - experimental
-      - opinionated
-      - performance
-      - style
-    disabled-checks:
-      - hugeParam
-      - rangeValCopy
-      - exitAfterDefer
-      - whyNoLint
-      - singleCaseSwitch
-      - commentedOutCode
-
+version: "2"
 linters:
-  disable-all: true
+  default: none
   enable:
-    - deadcode
-    - depguard
     - dogsled
     - dupl
     - errcheck
+    - gochecknoglobals
     - gochecknoinits
+    - gocognit
     - goconst
     - gocritic
-    - gofmt
-    - goimports
-    - golint
     - gosec
-    - gosimple
     - govet
     - ineffassign
     - lll
     - misspell
     - nakedret
     - staticcheck
-    - structcheck
-    - stylecheck
-    - typecheck
     - unconvert
     - unparam
     - unused
-    - varcheck
     - whitespace
-    - gochecknoglobals
-    - gocognit
-
-  # Do not enable:
-  # - wsl       (too opinionated about newlines)
-  # - godox     (todos are OK)
-  # - bodyclose (false positives on helper functions)
-  # - prealloc  (not worth it in scope of this project)
-  # - maligned  (same as prealloc)
-  # - funlen    (gocyclo is enough)
-
-issues:
-  exclude-use-default: false
-  exclude-rules:
-    - linters: [gocritic]
-      text: "commentedOutCode"
-      source: "SHA1"
-
-    # Allow embed globals
-    - source: "embed\\.FS"
-      linters: [gochecknoglobals]
-
-    # Exclude go:generate from lll
-    - source: "//go:generate"
-      linters: [lll]
-
-    # Disable linters that are annoying in tests.
-    - path: _test\.go
-      linters:
-        - gocyclo
-        - errcheck
-        - dupl
-        - gosec
-        - funlen
-        - goconst
-        - gocognit
-        - scopelint
-        - lll
-        - gochecknoglobals
-    # Ignore shadowing of err.
-    - linters: [govet]
-      text: 'declaration of "(err|ctx|log)"'
-
-    - text: "should have.+comment"
-      linters: [golint]
+  settings:
+    dupl:
+      threshold: 120
+    goconst:
+      min-len: 2
+      min-occurrences: 3
+    gocritic:
+      disabled-checks:
+        - hugeParam
+        - rangeValCopy
+        - exitAfterDefer
+        - whyNoLint
+        - singleCaseSwitch
+        - commentedOutCode
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+        - style
+    gocyclo:
+      min-complexity: 15
+    govet:
+      enable:
+        - shadow
+    lll:
+      line-length: 140
+    misspell:
+      locale: US
+  exclusions:
+    generated: lax
+    rules:
+      - linters:
+          - gocritic
+        text: commentedOutCode
+        source: SHA1
+      - linters:
+          - gochecknoglobals
+        source: embed\.FS
+      - linters:
+          - lll
+        source: //go:generate
+      - linters:
+          - dupl
+          - errcheck
+          - funlen
+          - gochecknoglobals
+          - gocognit
+          - goconst
+          - gocyclo
+          - gosec
+          - lll
+          - scopelint
+        path: _test\.go
+      - linters:
+          - govet
+        text: declaration of "(err|ctx|log)"
+      - linters:
+          - golint
+        text: should have.+comment
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/gotd/
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
