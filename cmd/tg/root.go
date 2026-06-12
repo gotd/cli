@@ -132,6 +132,10 @@ below apply to every command.`,
 		a.newBanCmd(),
 		a.newUnbanCmd(),
 		a.newSlowModeCmd(),
+		a.newSetTitleCmd(),
+		a.newSetAboutCmd(),
+		a.newInviteLinkCmd(),
+		a.newJoinLinkCmd(),
 	)
 	root.AddCommand(newDocsCmd(root))
 
