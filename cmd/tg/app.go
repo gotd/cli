@@ -3,14 +3,13 @@ package main
 import (
 	"context"
 	"crypto/md5" // #nosec
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/urfave/cli/v2"
+	"github.com/go-faster/errors"
+	"github.com/spf13/cobra"
 	"go.uber.org/zap"
-	"golang.org/x/xerrors"
 	"gopkg.in/yaml.v3"
 
 	"github.com/gotd/contrib/middleware/floodwait"
@@ -23,7 +22,20 @@ import (
 	"github.com/gotd/cli/internal/pretty"
 )
 
+// Config is the persisted CLI configuration.
+type Config struct {
+	AppID    int    `yaml:"app_id"`
+	AppHash  string `yaml:"app_hash"`
+	BotToken string `yaml:"bot_token"`
+}
+
+// app holds shared state and the values of the global (persistent) flags.
 type app struct {
+	// Global flags, bound to the root command's persistent flags.
+	configPath   string
+	debugInvoker bool
+	testServer   bool
+
 	cfg    Config
 	log    *zap.Logger
 	waiter *floodwait.Waiter
@@ -56,22 +68,22 @@ func newApp() *app {
 	}
 }
 
-func (p *app) run(ctx context.Context, f func(ctx context.Context, api *tg.Client) error) error {
-	if p.debug {
-		p.opts.Middlewares = append(p.opts.Middlewares, pretty.Middleware())
+func (a *app) run(ctx context.Context, f func(ctx context.Context, api *tg.Client) error) error {
+	if a.debug {
+		a.opts.Middlewares = append(a.opts.Middlewares, pretty.Middleware())
 	}
 
-	client := telegram.NewClient(p.cfg.AppID, p.cfg.AppHash, p.opts)
+	client := telegram.NewClient(a.cfg.AppID, a.cfg.AppHash, a.opts)
 
-	if err := p.waiter.Run(ctx, func(ctx context.Context) error {
+	if err := a.waiter.Run(ctx, func(ctx context.Context) error {
 		return client.Run(ctx, func(ctx context.Context) error {
 			s, err := client.Auth().Status(ctx)
 			if err != nil {
-				return xerrors.Errorf("check auth status: %w", err)
+				return errors.Wrap(err, "check auth status")
 			}
 			if !s.Authorized {
-				if _, err := client.Auth().Bot(ctx, p.cfg.BotToken); err != nil {
-					return xerrors.Errorf("check auth status: %w", err)
+				if _, err := client.Auth().Bot(ctx, a.cfg.BotToken); err != nil {
+					return errors.Wrap(err, "check auth status")
 				}
 			}
 			return f(ctx, tg.NewClient(client))
@@ -83,42 +95,54 @@ func (p *app) run(ctx context.Context, f func(ctx context.Context, api *tg.Clien
 	return nil
 }
 
-func (p *app) Before(c *cli.Context) error {
-	// HACK for init.
-	if c.Command.Name == "init" {
+// skipConfigCommands are commands that must run without a loaded config/session.
+func skipConfig(cmd *cobra.Command) bool {
+	for c := cmd; c != nil; c = c.Parent() {
+		switch c.Name() {
+		case "init", "docs", "completion", "help",
+			cobra.ShellCompRequestCmd, cobra.ShellCompNoDescRequestCmd:
+			return true
+		}
+	}
+	return false
+}
+
+// before loads config and prepares client options. It is wired as the root
+// command's PersistentPreRunE, so it runs before every subcommand.
+func (a *app) before(cmd *cobra.Command) error {
+	if skipConfig(cmd) {
 		return nil
 	}
 
-	cfgPath := c.String("config")
-	if cfgPath == "" {
-		return xerrors.Errorf("no config path provided")
+	if a.configPath == "" {
+		return errors.New("no config path provided")
 	}
 
-	data, err := os.ReadFile(cfgPath) // #nosec G304 // path provided via flag
+	data, err := os.ReadFile(a.configPath) // #nosec G304 // path provided via flag
 	if err != nil {
 		return err
 	}
 
-	if err := yaml.Unmarshal(data, &p.cfg); err != nil {
+	if err := yaml.Unmarshal(data, &a.cfg); err != nil {
 		return err
 	}
 
-	if p.cfg.BotToken == "" {
-		return xerrors.Errorf("no bot token provided")
+	if a.cfg.BotToken == "" {
+		return errors.New("no bot token provided")
 	}
 
 	// Default to same directory (near with config).
 	// Probably there is better way to handle this.
-	sessionName := fmt.Sprintf("gotd.session.%x.json", md5.Sum([]byte(p.cfg.BotToken))) // #nosec
-	p.opts.Logger = logzap.New(p.log.Named("tg"))
-	p.opts.SessionStorage = &session.FileStorage{
-		Path: filepath.Join(filepath.Dir(cfgPath), sessionName),
+	sessionName := fmt.Sprintf("gotd.session.%x.json", md5.Sum([]byte(a.cfg.BotToken))) // #nosec
+	a.opts.Logger = logzap.New(a.log.Named("tg"))
+	a.opts.SessionStorage = &session.FileStorage{
+		Path: filepath.Join(filepath.Dir(a.configPath), sessionName),
 	}
-	if c.Bool("test") {
-		p.opts.DCList = dcs.Test()
+	if a.testServer {
+		a.opts.DCList = dcs.Test()
 	}
-	if c.Bool("debug-invoker") {
-		p.debug = true
+	if a.debugInvoker {
+		a.debug = true
 	}
 
 	return nil

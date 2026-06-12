@@ -3,58 +3,54 @@ package main
 import (
 	"time"
 
-	"github.com/urfave/cli/v2"
+	"github.com/spf13/pflag"
 
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/telegram/message/html"
 	"github.com/gotd/td/telegram/message/styling"
 )
 
-// messageFlags returns common flags for send and upload.
-func messageFlags() []cli.Flag {
-	return []cli.Flag{
-		&cli.BoolFlag{
-			Name:  "html",
-			Usage: "use HTML styling",
-		},
-		&cli.BoolFlag{
-			Name:  "silent",
-			Usage: "send this message silently (no notifications for the receivers)",
-		},
-		&cli.BoolFlag{
-			Name:  "nowebpage",
-			Usage: "disable generation of the webpage preview",
-		},
-		&cli.DurationFlag{
-			Name:  "schedule",
-			Usage: "scheduled message date for scheduled messages",
-		},
-	}
+// messageOptions holds flags shared by the send and upload commands.
+type messageOptions struct {
+	html      bool
+	silent    bool
+	noWebpage bool
+	schedule  time.Duration
 }
 
-func applyMessageFlags(
-	c *cli.Context,
+// register binds the shared message flags onto the given flag set.
+func (o *messageOptions) register(fs *pflag.FlagSet) {
+	fs.BoolVar(&o.html, "html", false, "use HTML styling")
+	fs.BoolVar(&o.silent, "silent", false,
+		"send this message silently (no notifications for the receivers)")
+	fs.BoolVar(&o.noWebpage, "nowebpage", false,
+		"disable generation of the webpage preview")
+	fs.DurationVar(&o.schedule, "schedule", 0,
+		"schedule the message to be sent after this delay")
+}
+
+// apply mutates the request builder according to the flags and returns the
+// builder together with the styled text options for the message body.
+func (o *messageOptions) apply(
 	r *message.RequestBuilder,
 	msg string,
 ) (*message.Builder, []styling.StyledTextOption) {
-	p := &r.Builder
+	b := &r.Builder
 
-	if c.Bool("silent") {
-		p = p.Silent()
+	if o.silent {
+		b = b.Silent()
 	}
-
-	if c.Bool("nowebpage") {
-		p = p.NoWebpage()
+	if o.noWebpage {
+		b = b.NoWebpage()
 	}
-
-	if d := c.Duration("schedule"); c.IsSet("schedule") {
-		p = p.Schedule(time.Now().Add(d))
+	if o.schedule > 0 {
+		b = b.Schedule(time.Now().Add(o.schedule))
 	}
 
 	option := styling.Plain(msg)
-	if c.Bool("html") {
+	if o.html {
 		option = html.String(nil, msg)
 	}
 
-	return p, []styling.StyledTextOption{option}
+	return b, []styling.StyledTextOption{option}
 }
