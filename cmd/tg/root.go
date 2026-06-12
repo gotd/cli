@@ -72,6 +72,16 @@ below apply to every command.`,
 	pf.StringVarP(&a.outputFormat, "output", "o", string(output.Text), "output format: text or json")
 	pf.StringVar(&a.proxyURL, "proxy", os.Getenv("TG_PROXY"),
 		"proxy URL: socks5:// or tg://proxy?... (overrides config)")
+	pf.StringVarP(&a.accountFlag, "account", "a", os.Getenv("TG_ACCOUNT"),
+		"account label to use, or 'all' to fan out (default: the default account)")
+	_ = root.RegisterFlagCompletionFunc("account",
+		func(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+			cfg, err := loadConfig(a.configPath)
+			if err != nil {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			return append(cfg.labels(), "all"), cobra.ShellCompDirectiveNoFileComp
+		})
 	pf.BoolVar(&a.debugInvoker, "debug-invoker", false, "use pretty-printing debug invoker")
 	pf.BoolVar(&a.testServer, "test", false, "connect to the telegram test server")
 	_ = root.RegisterFlagCompletionFunc("output",
@@ -87,6 +97,7 @@ below apply to every command.`,
 	root.AddCommand(
 		newInitCmd(a),
 		a.newLoginCmd(),
+		a.newAccountsCmd(),
 		a.newWhoamiCmd(),
 		a.newChatsCmd(),
 		a.newHistoryCmd(),

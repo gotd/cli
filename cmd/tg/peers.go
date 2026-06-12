@@ -41,7 +41,8 @@ func (r peerResolver) ResolvePhone(ctx context.Context, phone string) (tg.InputP
 //
 // TODO(phase7): take an account label / auth kind for multi-account.
 func (a *app) manager(api *tg.Client) (*peers.Manager, error) {
-	store, err := peercache.Open(a.cfg.peerCachePath(filepath.Dir(a.configPath), authUser.String()))
+	path := a.active.acc.peerCachePath(filepath.Dir(a.configPath), a.active.label, authUser.String())
+	store, err := peercache.Open(path)
 	if err != nil {
 		return nil, errors.Wrap(err, "open peer cache")
 	}

@@ -45,6 +45,13 @@ func (k authKind) String() string {
 	return kindUser
 }
 
+// accountState is the resolved runtime state for the active account.
+type accountState struct {
+	label    string
+	acc      Account
+	resolver dcs.Resolver
+}
+
 // app holds shared state and the values of the global (persistent) flags.
 type app struct {
 	// Global flags, bound to the root command's persistent flags.
@@ -53,12 +60,15 @@ type app struct {
 	testServer   bool
 	outputFormat string
 	proxyURL     string
+	accountFlag  string
 
-	cfg      Config
-	log      *zap.Logger
-	waiter   *floodwait.Waiter
-	printer  *output.Printer
-	resolver dcs.Resolver
+	cfg     Config
+	log     *zap.Logger
+	waiter  *floodwait.Waiter
+	printer *output.Printer
+
+	// active is the account currently being operated on (set per run iteration).
+	active *accountState
 
 	debug bool
 }
@@ -101,19 +111,66 @@ func (a *app) before(cmd *cobra.Command) error {
 	if a.debugInvoker {
 		a.debug = true
 	}
+	return nil
+}
 
-	// Proxy precedence: --proxy flag / TG_PROXY env (both bound to proxyURL)
-	// over the config's proxy.
+// selectedLabels returns the account labels the command should run against.
+func (a *app) selectedLabels() ([]string, error) {
+	if a.accountFlag == "all" {
+		labels := a.cfg.labels()
+		if len(labels) == 0 {
+			return nil, errors.New("no configured accounts")
+		}
+		return labels, nil
+	}
+	label := a.accountFlag
+	if label == "" {
+		label = defaultAccount
+	}
+	return []string{label}, nil
+}
+
+// activate resolves and installs the account state for label. When multi is set,
+// the account label is included in output.
+func (a *app) activate(label string, multi bool) error {
+	acc, err := a.cfg.account(label)
+	if err != nil {
+		return err
+	}
+	if !acc.configured() {
+		return errors.Errorf("account %q is not configured (run tg init or tg login --account %s)", label, label)
+	}
+
+	// Proxy precedence: --proxy flag / TG_PROXY env over the account's proxy.
 	proxyURL := a.proxyURL
 	if proxyURL == "" {
-		proxyURL = cfg.Proxy
+		proxyURL = acc.Proxy
 	}
 	resolver, err := proxy.Resolver(proxyURL)
 	if err != nil {
 		return err
 	}
-	a.resolver = resolver
+
+	a.active = &accountState{label: label, acc: acc, resolver: resolver}
+	if multi {
+		a.printer.SetAccount(label)
+	}
 	return nil
+}
+
+// ensureActive activates a single selected account if none is active yet.
+func (a *app) ensureActive() error {
+	if a.active != nil {
+		return nil
+	}
+	labels, err := a.selectedLabels()
+	if err != nil {
+		return err
+	}
+	if len(labels) != 1 {
+		return errors.New("this command needs a single --account (not 'all')")
+	}
+	return a.activate(labels[0], false)
 }
 
 // skipConfig reports whether the command runs without a loaded config/session.
@@ -149,7 +206,7 @@ func (a *app) options(rp runParams, d tg.UpdateDispatcher) telegram.Options {
 		Logger:      logzap.New(a.log.Named("tg")),
 		Middlewares: mw,
 		SessionStorage: &session.FileStorage{
-			Path: a.cfg.sessionPath(filepath.Dir(a.configPath), rp.auth.String()),
+			Path: a.active.acc.sessionPath(filepath.Dir(a.configPath), a.active.label, rp.auth.String()),
 		},
 	}
 	if rp.updates {
@@ -160,8 +217,8 @@ func (a *app) options(rp runParams, d tg.UpdateDispatcher) telegram.Options {
 	if a.testServer {
 		opts.DCList = dcs.Test()
 	}
-	if a.resolver != nil {
-		opts.Resolver = a.resolver
+	if a.active.resolver != nil {
+		opts.Resolver = a.active.resolver
 	}
 	return opts
 }
@@ -174,12 +231,16 @@ func (a *app) connect(
 	rp runParams,
 	f func(ctx context.Context, client *telegram.Client, d tg.UpdateDispatcher) error,
 ) error {
+	if err := a.ensureActive(); err != nil {
+		return err
+	}
+
 	var d tg.UpdateDispatcher
 	if rp.updates {
 		d = tg.NewUpdateDispatcher()
 	}
 
-	client := telegram.NewClient(a.cfg.AppID, a.cfg.AppHash, a.options(rp, d))
+	client := telegram.NewClient(a.active.acc.AppID, a.active.acc.AppHash, a.options(rp, d))
 
 	if err := a.waiter.Run(ctx, func(ctx context.Context) error {
 		return client.Run(ctx, func(ctx context.Context) error {
@@ -192,9 +253,38 @@ func (a *app) connect(
 }
 
 // run connects, ensures the session is authorized, and calls f with the API
-// client. User sessions must already be logged in (unless rp.authorize is set);
-// bot sessions authenticate with the configured token on demand.
+// client, once per selected account. With --account all it fans out across all
+// configured accounts (sequentially), labeling each result. User sessions must
+// already be logged in (unless rp.authorize is set); bot sessions authenticate
+// with the configured token on demand.
 func (a *app) run(
+	ctx context.Context,
+	rp runParams,
+	f func(ctx context.Context, api *tg.Client) error,
+) error {
+	labels, err := a.selectedLabels()
+	if err != nil {
+		return err
+	}
+	multi := len(labels) > 1
+
+	for _, label := range labels {
+		a.active = nil
+		if err := a.activate(label, multi); err != nil {
+			return err
+		}
+		if err := a.runOne(ctx, rp, f); err != nil {
+			if multi {
+				return errors.Wrapf(err, "account %q", label)
+			}
+			return err
+		}
+	}
+	return nil
+}
+
+// runOne authorizes and runs f against the active account.
+func (a *app) runOne(
 	ctx context.Context,
 	rp runParams,
 	f func(ctx context.Context, api *tg.Client) error,
@@ -211,10 +301,10 @@ func (a *app) run(
 					return err
 				}
 			case rp.auth == authBot:
-				if a.cfg.BotToken == "" {
+				if a.active.acc.BotToken == "" {
 					return errors.New("no bot_token in config")
 				}
-				if _, err := client.Auth().Bot(ctx, a.cfg.BotToken); err != nil {
+				if _, err := client.Auth().Bot(ctx, a.active.acc.BotToken); err != nil {
 					return errors.Wrap(err, "bot auth")
 				}
 			default:

@@ -50,8 +50,9 @@ type TextMarshaler interface {
 
 // Printer writes command results in the configured format.
 type Printer struct {
-	format Format
-	w      io.Writer
+	format  Format
+	w       io.Writer
+	account string // optional account label, included in JSON / text headers
 }
 
 // New returns a Printer writing to w in the given format.
@@ -62,9 +63,14 @@ func New(format Format, w io.Writer) *Printer {
 // Format reports the printer's format.
 func (p *Printer) Format() Format { return p.format }
 
+// SetAccount sets the account label included with each emitted result. Empty
+// disables it (single-account mode).
+func (p *Printer) SetAccount(label string) { p.account = label }
+
 type envelope struct {
-	Schema int `json:"schema"`
-	Data   any `json:"data"`
+	Schema  int    `json:"schema"`
+	Account string `json:"account,omitempty"`
+	Data    any    `json:"data"`
 }
 
 // Emit writes a single result value.
@@ -72,10 +78,16 @@ func (p *Printer) Emit(v any) error {
 	if p.format == JSON {
 		enc := json.NewEncoder(p.w)
 		enc.SetIndent("", "  ")
-		if err := enc.Encode(envelope{Schema: schemaVersion, Data: v}); err != nil {
+		if err := enc.Encode(envelope{Schema: schemaVersion, Account: p.account, Data: v}); err != nil {
 			return errors.Wrap(err, "encode json")
 		}
 		return nil
+	}
+
+	if p.account != "" {
+		if _, err := fmt.Fprintf(p.w, "== %s ==\n", p.account); err != nil {
+			return errors.Wrap(err, "write account header")
+		}
 	}
 
 	if tm, ok := v.(TextMarshaler); ok {
