@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 
 	"github.com/go-faster/errors"
 	"github.com/spf13/cobra"
 
 	"github.com/gotd/td/telegram/peers"
+	"github.com/gotd/td/telegram/uploader"
 	"github.com/gotd/td/tg"
 )
 
@@ -68,6 +70,47 @@ func (a *app) newSetAboutCmd() *cobra.Command {
 					About: args[1],
 				}); err != nil {
 					return errors.Wrap(err, "messages.editChatAbout")
+				}
+				return a.printer.Emit(okResult{OK: true})
+			})
+		},
+	}
+	return cmd
+}
+
+func (a *app) newSetPhotoCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:               "set-photo <peer> <file>",
+		Short:             "Set a chat's photo",
+		GroupID:           groupChats,
+		Args:              cobra.ExactArgs(2),
+		ValidArgsFunction: peerArgCompletion,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return a.run(cmd.Context(), runParams{auth: authUser}, func(ctx context.Context, api *tg.Client) error {
+				file, err := uploader.NewUploader(api).FromPath(ctx, filepath.Clean(args[1]))
+				if err != nil {
+					return errors.Wrapf(err, "upload %q", args[1])
+				}
+				photo := &tg.InputChatUploadedPhoto{File: file}
+
+				m, err := a.manager(api)
+				if err != nil {
+					return err
+				}
+				p, err := m.Resolve(ctx, args[0])
+				if err != nil {
+					return errors.Wrapf(err, "resolve %q", args[0])
+				}
+				switch v := p.(type) {
+				case peers.Channel:
+					_, err = api.ChannelsEditPhoto(ctx, &tg.ChannelsEditPhotoRequest{Channel: v.InputChannel(), Photo: photo})
+				case peers.Chat:
+					_, err = api.MessagesEditChatPhoto(ctx, &tg.MessagesEditChatPhotoRequest{ChatID: v.ID(), Photo: photo})
+				default:
+					return errors.New("peer is not a group or channel")
+				}
+				if err != nil {
+					return errors.Wrap(err, "edit photo")
 				}
 				return a.printer.Emit(okResult{OK: true})
 			})

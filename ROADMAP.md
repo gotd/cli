@@ -143,10 +143,10 @@ These directly cover "upload files to myself, list chats, mark chats as read, re
 
 ### Phase 4 — Groups & channels admin
 
-- [ ] Create group/channel, invite, leave, participants, admins, banned.
-- [ ] Admin/moderation: promote/demote, ban/unban, permissions, slow mode, admin rights, recent actions.
-- [ ] Edit chat title/photo/about, invite links (export/import/join by link).
-- [ ] Forum topics.
+- [x] Create group/channel, invite, leave, participants, admins, banned.
+- [x] Admin/moderation: promote/demote, ban/unban, permissions, slow mode, admin rights, recent actions.
+- [x] Edit chat title/photo/about, invite links (export/import/join by link).
+- [x] Forum topics.
 
 ### Phase 5 — Profile & folders
 

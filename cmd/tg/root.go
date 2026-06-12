@@ -134,8 +134,11 @@ below apply to every command.`,
 		a.newSlowModeCmd(),
 		a.newSetTitleCmd(),
 		a.newSetAboutCmd(),
+		a.newSetPhotoCmd(),
 		a.newInviteLinkCmd(),
 		a.newJoinLinkCmd(),
+		a.newTopicsCmd(),
+		a.newRecentActionsCmd(),
 	)
 	root.AddCommand(newDocsCmd(root))
 
