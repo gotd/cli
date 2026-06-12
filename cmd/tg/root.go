@@ -107,6 +107,7 @@ below apply to every command.`,
 		a.newReadCmd(),
 		a.newUploadCmd(),
 		a.newAlbumCmd(),
+		a.newStickersCmd(),
 		a.newDownloadCmd(),
 	)
 	root.AddCommand(newDocsCmd(root))

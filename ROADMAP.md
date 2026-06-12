@@ -122,16 +122,17 @@ These directly cover "upload files to myself, list chats, mark chats as read, re
 
 ### Phase 2 — Messaging depth
 
-- [ ] `edit`, `delete` (single + bulk), `delete-history`.
-- [ ] `forward` (single + multiple).
-- [ ] `pin` / `unpin` / `unpin-all` / `pinned`.
-- [ ] Reactions: `react` / `unreact` / `reactions`.
-- [ ] Drafts: `draft set` / `drafts` / `draft clear`.
-- [ ] Scheduled messages: `schedule` send / list / delete.
-- [ ] Search: `search <peer> <query>` and `search --global <query>`.
-- [ ] Polls: `poll create`.
-- [ ] Message context / links: `context`, `link`.
-- [ ] Albums, voice, stickers, GIFs.
+- [x] `edit`, `delete` (single + bulk), `delete-history`.
+- [x] `forward` (single + multiple).
+- [x] `pin` / `unpin` / `unpin-all` / `pinned`.
+- [x] Reactions: `react` / `unreact` / `reactions`.
+- [x] Drafts: `draft set` / `drafts` / `draft clear`.
+- [x] Scheduled messages: `schedule` send / list / delete.
+- [x] Search: `search <peer> <query>` and `search --global <query>`.
+- [x] Polls: `poll create`.
+- [x] Message context / links: `context`, `link`.
+- [x] Albums, voice, stickers, GIFs. *(album + `upload --type voice|sticker|gif` + `stickers`
+      list; GIF search deferred — inline-bot flow, low value.)*
 
 ### Phase 3 — Chats & contacts
 
