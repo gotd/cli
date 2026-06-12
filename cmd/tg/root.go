@@ -83,6 +83,7 @@ below apply to every command.`,
 		a.newLoginCmd(),
 		a.newWhoamiCmd(),
 		a.newChatsCmd(),
+		a.newHistoryCmd(),
 		a.newSendCmd(),
 		a.newUploadCmd(),
 	)

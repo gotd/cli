@@ -64,6 +64,14 @@ func describePeer(p tg.PeerClass, ent peer.Entities) peerRef {
 	}
 }
 
+// mediaType returns a short lowercase name for a message media, e.g. "photo".
+func mediaType(m tg.MessageMediaClass) string {
+	if _, ok := m.(*tg.MessageMediaEmpty); ok {
+		return ""
+	}
+	return strings.ToLower(strings.TrimPrefix(m.TypeName(), "messageMedia"))
+}
+
 // messagePreview returns a one-line preview of a message's text, collapsing
 // whitespace and noting media-only messages.
 func messagePreview(m tg.MessageClass) string {

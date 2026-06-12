@@ -21,6 +21,18 @@ func registerPeerCompletion(cmd *cobra.Command, flag string) {
 	)
 }
 
+// peerArgCompletion completes a positional peer argument (the first arg).
+func peerArgCompletion(_ *cobra.Command, args []string, _ string) ([]string, cobra.ShellCompDirective) {
+	if len(args) > 0 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	return []string{
+			"me\tSaved Messages (yourself)",
+			"self\tSaved Messages (yourself)",
+		},
+		cobra.ShellCompDirectiveNoFileComp
+}
+
 // registerEnumCompletion offers the allowed values of an enum flag.
 func registerEnumCompletion(cmd *cobra.Command, flag string, allowed []string) {
 	_ = cmd.RegisterFlagCompletionFunc(flag,

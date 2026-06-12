@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"path/filepath"
+	"strings"
 
 	"github.com/go-faster/errors"
 
@@ -53,4 +54,18 @@ func (a *app) sender(api *tg.Client, kind authKind) (*message.Sender, error) {
 		return nil, err
 	}
 	return message.NewSender(api).WithResolver(peerResolver{m: m}), nil
+}
+
+// resolvePeer turns a peer string into an InputPeer using the cached manager.
+// The empty string, "me" and "self" resolve to the current account.
+func resolvePeer(ctx context.Context, m *peers.Manager, from string) (tg.InputPeerClass, error) {
+	switch strings.ToLower(strings.TrimSpace(from)) {
+	case "", "me", "self":
+		return &tg.InputPeerSelf{}, nil
+	}
+	p, err := m.Resolve(ctx, from)
+	if err != nil {
+		return nil, errors.Wrapf(err, "resolve peer %q", from)
+	}
+	return p.InputPeer(), nil
 }
