@@ -119,6 +119,7 @@ below apply to every command.`,
 		a.newResolveCmd(),
 		a.newSearchPublicCmd(),
 		a.newSubscribeCmd(),
+		a.newContactsCmd(),
 	)
 	root.AddCommand(newDocsCmd(root))
 

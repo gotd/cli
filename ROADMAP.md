@@ -136,10 +136,10 @@ These directly cover "upload files to myself, list chats, mark chats as read, re
 
 ### Phase 3 — Chats & contacts
 
-- [ ] `chat get` / `chat full`.
-- [ ] `mute` / `unmute` / `archive` / `unarchive`.
-- [ ] `resolve <username>`, `search-public <query>`, `subscribe`.
-- [ ] Contacts: list / search / add / delete / block / unblock / blocked / import / export.
+- [x] `chat get` / `chat full`.
+- [x] `mute` / `unmute` / `archive` / `unarchive`.
+- [x] `resolve <username>`, `search-public <query>`, `subscribe`.
+- [x] Contacts: list / search / add / delete / block / unblock / blocked / import / export.
 
 ### Phase 4 — Groups & channels admin
 
