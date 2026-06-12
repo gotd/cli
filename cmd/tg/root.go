@@ -78,6 +78,7 @@ below apply to every command.`,
 		&cobra.Group{ID: groupAuth, Title: "Authentication & setup:"},
 		&cobra.Group{ID: groupMessaging, Title: "Messaging:"},
 		&cobra.Group{ID: groupChats, Title: "Chats & contacts:"},
+		&cobra.Group{ID: groupProfile, Title: "Profile & folders:"},
 	)
 
 	root.AddCommand(
@@ -139,6 +140,7 @@ below apply to every command.`,
 		a.newJoinLinkCmd(),
 		a.newTopicsCmd(),
 		a.newRecentActionsCmd(),
+		a.newProfileCmd(),
 	)
 	root.AddCommand(newDocsCmd(root))
 
