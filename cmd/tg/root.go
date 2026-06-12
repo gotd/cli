@@ -88,6 +88,7 @@ below apply to every command.`,
 		a.newReplyCmd(),
 		a.newReadCmd(),
 		a.newUploadCmd(),
+		a.newDownloadCmd(),
 	)
 	root.AddCommand(newDocsCmd(root))
 
