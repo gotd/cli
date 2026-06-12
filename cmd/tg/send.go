@@ -52,7 +52,7 @@ Saved Messages, which is handy for notes and agent self-messaging.`,
 			}
 
 			return a.run(cmd.Context(), runParams{auth: authUser}, func(ctx context.Context, api *tg.Client) error {
-				sender, err := a.sender(api, authUser)
+				sender, err := a.sender(api)
 				if err != nil {
 					return err
 				}

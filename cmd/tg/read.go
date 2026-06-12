@@ -55,7 +55,7 @@ me/self, @username, phone, or a t.me link.`,
 		ValidArgsFunction: peerArgCompletion,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.run(cmd.Context(), runParams{auth: authUser}, func(ctx context.Context, api *tg.Client) error {
-				m, err := a.manager(api, authUser)
+				m, err := a.manager(api)
 				if err != nil {
 					return err
 				}

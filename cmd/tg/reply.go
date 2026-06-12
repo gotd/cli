@@ -33,7 +33,7 @@ me/self, @username, phone, or a t.me link.`,
 			text := args[2]
 
 			return a.run(cmd.Context(), runParams{auth: authUser}, func(ctx context.Context, api *tg.Client) error {
-				sender, err := a.sender(api, authUser)
+				sender, err := a.sender(api)
 				if err != nil {
 					return err
 				}

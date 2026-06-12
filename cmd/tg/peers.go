@@ -37,9 +37,11 @@ func (r peerResolver) ResolvePhone(ctx context.Context, phone string) (tg.InputP
 }
 
 // manager builds a peers.Manager backed by the persistent access-hash cache for
-// the given auth kind.
-func (a *app) manager(api *tg.Client, kind authKind) (*peers.Manager, error) {
-	store, err := peercache.Open(a.cfg.peerCachePath(filepath.Dir(a.configPath), kind.String()))
+// the user account.
+//
+// TODO(phase7): take an account label / auth kind for multi-account.
+func (a *app) manager(api *tg.Client) (*peers.Manager, error) {
+	store, err := peercache.Open(a.cfg.peerCachePath(filepath.Dir(a.configPath), authUser.String()))
 	if err != nil {
 		return nil, errors.Wrap(err, "open peer cache")
 	}
@@ -48,8 +50,8 @@ func (a *app) manager(api *tg.Client, kind authKind) (*peers.Manager, error) {
 
 // sender returns a message.Sender that resolves peers through the cached
 // manager, so access-hashes persist across invocations.
-func (a *app) sender(api *tg.Client, kind authKind) (*message.Sender, error) {
-	m, err := a.manager(api, kind)
+func (a *app) sender(api *tg.Client) (*message.Sender, error) {
+	m, err := a.manager(api)
 	if err != nil {
 		return nil, err
 	}

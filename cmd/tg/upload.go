@@ -252,7 +252,7 @@ The document type is detected from the file's MIME type unless --type is set.`,
 				upld := uploader.NewUploader(api).
 					WithThreads(uf.threads).
 					WithPartSize(uploader.MaximumPartSize)
-				sender, err := a.sender(api, authUser)
+				sender, err := a.sender(api)
 				if err != nil {
 					return err
 				}

@@ -155,7 +155,7 @@ filename is used in the current directory.`,
 			}
 
 			return a.run(cmd.Context(), runParams{auth: authUser}, func(ctx context.Context, api *tg.Client) error {
-				m, err := a.manager(api, authUser)
+				m, err := a.manager(api)
 				if err != nil {
 					return err
 				}
