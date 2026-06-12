@@ -13,6 +13,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.9
 	go.uber.org/zap v1.28.0
+	golang.org/x/net v0.56.0
 	golang.org/x/sync v0.21.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -56,7 +57,6 @@ require (
 	golang.org/x/crypto v0.53.0 // indirect
 	golang.org/x/exp v0.0.0-20230725093048-515e97ebf090 // indirect
 	golang.org/x/mod v0.37.0 // indirect
-	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/sys v0.46.0 // indirect
 	golang.org/x/term v0.44.0 // indirect
 	golang.org/x/text v0.38.0 // indirect

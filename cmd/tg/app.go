@@ -17,6 +17,7 @@ import (
 
 	"github.com/gotd/cli/internal/output"
 	"github.com/gotd/cli/internal/pretty"
+	"github.com/gotd/cli/internal/proxy"
 )
 
 // errNotAuthorized is returned when a user-session command runs without a
@@ -51,11 +52,13 @@ type app struct {
 	debugInvoker bool
 	testServer   bool
 	outputFormat string
+	proxyURL     string
 
-	cfg     Config
-	log     *zap.Logger
-	waiter  *floodwait.Waiter
-	printer *output.Printer
+	cfg      Config
+	log      *zap.Logger
+	waiter   *floodwait.Waiter
+	printer  *output.Printer
+	resolver dcs.Resolver
 
 	debug bool
 }
@@ -98,6 +101,18 @@ func (a *app) before(cmd *cobra.Command) error {
 	if a.debugInvoker {
 		a.debug = true
 	}
+
+	// Proxy precedence: --proxy flag / TG_PROXY env (both bound to proxyURL)
+	// over the config's proxy.
+	proxyURL := a.proxyURL
+	if proxyURL == "" {
+		proxyURL = cfg.Proxy
+	}
+	resolver, err := proxy.Resolver(proxyURL)
+	if err != nil {
+		return err
+	}
+	a.resolver = resolver
 	return nil
 }
 
@@ -144,6 +159,9 @@ func (a *app) options(rp runParams, d tg.UpdateDispatcher) telegram.Options {
 	}
 	if a.testServer {
 		opts.DCList = dcs.Test()
+	}
+	if a.resolver != nil {
+		opts.Resolver = a.resolver
 	}
 	return opts
 }
