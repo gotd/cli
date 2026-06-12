@@ -106,6 +106,7 @@ below apply to every command.`,
 		a.newPollCmd(),
 		a.newReadCmd(),
 		a.newUploadCmd(),
+		a.newAlbumCmd(),
 		a.newDownloadCmd(),
 	)
 	root.AddCommand(newDocsCmd(root))
