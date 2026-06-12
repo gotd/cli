@@ -82,6 +82,7 @@ below apply to every command.`,
 		newInitCmd(a),
 		a.newLoginCmd(),
 		a.newWhoamiCmd(),
+		a.newChatsCmd(),
 		a.newSendCmd(),
 		a.newUploadCmd(),
 	)
