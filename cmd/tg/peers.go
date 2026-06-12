@@ -56,6 +56,17 @@ func (a *app) sender(api *tg.Client, kind authKind) (*message.Sender, error) {
 	return message.NewSender(api).WithResolver(peerResolver{m: m}), nil
 }
 
+// builderFor returns a request builder targeting peer; the empty string, "me"
+// and "self" target the current account's Saved Messages.
+func builderFor(sender *message.Sender, peer string) *message.RequestBuilder {
+	switch strings.ToLower(strings.TrimSpace(peer)) {
+	case "", "me", "self":
+		return sender.Self()
+	default:
+		return sender.Resolve(peer)
+	}
+}
+
 // resolvePeer turns a peer string into an InputPeer using the cached manager.
 // The empty string, "me" and "self" resolve to the current account.
 func resolvePeer(ctx context.Context, m *peers.Manager, from string) (tg.InputPeerClass, error) {

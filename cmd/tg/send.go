@@ -2,12 +2,27 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"io"
 
 	"github.com/go-faster/errors"
 	"github.com/spf13/cobra"
 
+	"github.com/gotd/td/telegram/message/unpack"
 	"github.com/gotd/td/tg"
 )
+
+// sentResult is the result of a command that sends a message.
+type sentResult struct {
+	Peer      string `json:"peer,omitempty"`
+	MessageID int    `json:"message_id"`
+}
+
+// MarshalText renders a short acknowledgement.
+func (r sentResult) MarshalText(w io.Writer) error {
+	_, err := fmt.Fprintf(w, "sent message #%d\n", r.MessageID)
+	return err
+}
 
 func (a *app) newSendCmd() *cobra.Command {
 	var (
@@ -42,17 +57,12 @@ Saved Messages, which is handy for notes and agent self-messaging.`,
 					return err
 				}
 
-				builder := sender.Self()
-				if peer != "" {
-					builder = sender.Resolve(peer)
-				}
-
-				b, options := msg.apply(builder, text)
-				if _, err := b.StyledText(ctx, options...); err != nil {
+				b, options := msg.apply(builderFor(sender, peer), text)
+				id, err := unpack.MessageID(b.StyledText(ctx, options...))
+				if err != nil {
 					return errors.Wrap(err, "send")
 				}
-
-				return nil
+				return a.printer.Emit(sentResult{Peer: peer, MessageID: id})
 			})
 		},
 	}

@@ -85,6 +85,8 @@ below apply to every command.`,
 		a.newChatsCmd(),
 		a.newHistoryCmd(),
 		a.newSendCmd(),
+		a.newReplyCmd(),
+		a.newReadCmd(),
 		a.newUploadCmd(),
 	)
 	root.AddCommand(newDocsCmd(root))
