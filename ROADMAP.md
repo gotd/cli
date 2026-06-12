@@ -68,7 +68,7 @@ These cut across every feature and matter as much as the features themselves:
     round-trip where possible (read from the local session/peer cache).
   - Use `cobra.Command.RunE` (error-returning) throughout; wire global flags as persistent
     flags on the root; pair with `spf13/pflag` for GNU-style `--flag`/`-f` parsing.
-- [ ] **QR login (primary)**: `tg login` defaults to QR, following
+- [x] **QR login (primary)**: `tg login` defaults to QR, following
       `gotd/td`'s `examples/qrauth.go` + `examples/userbot`. Wiring:
   - `dispatcher := tg.NewUpdateDispatcher()` and
     `loggedIn := qrlogin.OnLoginToken(&dispatcher)` — the channel fires on
@@ -84,17 +84,17 @@ These cut across every feature and matter as much as the features themselves:
     dispatcher conditional on the command.
   - UX: scan once (Settings → Devices → Link Desktop Device); the session persists in
     `session.FileStorage`, so all later agent invocations are headless.
-- [ ] **Phone login (fallback)**: `tg login --phone` using `auth.NewFlow` (code + 2FA), for
+- [x] **Phone login (fallback)**: `tg login --phone` using `auth.NewFlow` (code + 2FA), for
       environments where scanning a QR is inconvenient.
-- [ ] Persist the user session alongside the existing bot session. Extend `Config`/`init`
+- [x] Persist the user session alongside the existing bot session. Extend `Config`/`init`
       to support a user session path; relax `app.Before` so a bot token is no longer
       mandatory.
-- [ ] **Auth mode selection**: allow a single config to hold both; commands pick user vs
+- [x] **Auth mode selection**: allow a single config to hold both; commands pick user vs
       bot session (most new commands are user-only).
-- [ ] **`--output json` plumbing**: a small result-writer used by all commands; move logs
+- [x] **`--output json` plumbing**: a small result-writer used by all commands; move logs
       and progress to stderr.
-- [ ] **Peer resolver + access-hash cache** in the session directory.
-- [ ] **Proxy support (global)**: a single `--proxy` flag (config + `TG_PROXY` env)
+- [x] **Peer resolver + access-hash cache** in the session directory.
+- [x] **Proxy support (global)**: a single `--proxy` flag (config + `TG_PROXY` env)
       accepting a URL, threaded into `telegram.Options.Resolver`:
   - `socks5://`, `socks4://`, `http(s)://` → `dcs.Plain` with a
     `golang.org/x/net/proxy` dialer (already in the module graph via `x/net`; no new dep).
@@ -104,7 +104,7 @@ These cut across every feature and matter as much as the features themselves:
     `gotd/td`'s `examples/mtproxy-connect`.
   - Wire it at client construction so every command benefits; per-account overrides come in
     Phase 7.
-- [ ] **`tg whoami`**: smallest end-to-end user-session command to validate auth.
+- [x] **`tg whoami`**: smallest end-to-end user-session command to validate auth.
 
 ### Phase 1 — Core agent loop (the explicit asks)
 
