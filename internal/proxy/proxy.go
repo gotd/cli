@@ -1,17 +1,15 @@
 // Package proxy builds a gotd/td dcs.Resolver from a proxy URL, so every
-// command can route MTProto traffic through a SOCKS5, HTTP(S) or MTProxy proxy.
+// command can route MTProto traffic through a SOCKS5 or MTProxy proxy.
 //
 // Supported URL schemes:
 //
 //	socks5://[user:pass@]host:port      SOCKS5 (also socks5h://)
-//	http://[user:pass@]host:port        HTTP CONNECT (also https://)
 //	tg://proxy?server=&port=&secret=     MTProxy (native)
 //
 // An empty URL yields a nil resolver (use the default).
 package proxy
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/hex"
 	"net"
@@ -29,14 +27,13 @@ type kind int
 
 const (
 	kindSOCKS kind = iota
-	kindHTTP
 	kindMTProxy
 )
 
 // parsed is the normalized form of a proxy URL.
 type parsed struct {
 	kind kind
-	url  *url.URL // for SOCKS/HTTP
+	url  *url.URL // for SOCKS
 	addr string   // host:port for MTProxy
 	// secret for MTProxy.
 	secret []byte
@@ -52,12 +49,10 @@ func parse(raw string) (parsed, error) {
 	switch scheme := strings.ToLower(u.Scheme); scheme {
 	case "socks5", "socks5h", "socks4", "socks4a":
 		return parsed{kind: kindSOCKS, url: u}, nil
-	case "http", "https":
-		return parsed{kind: kindHTTP, url: u}, nil
 	case "tg", "mtproxy":
 		return parseMTProxy(u)
 	default:
-		return parsed{}, errors.Errorf("unsupported proxy scheme %q", scheme)
+		return parsed{}, errors.Errorf("unsupported proxy scheme %q (use socks5:// or tg://proxy?...)", scheme)
 	}
 }
 
@@ -105,8 +100,6 @@ func Resolver(raw string) (dcs.Resolver, error) {
 	switch p.kind {
 	case kindSOCKS:
 		return socksResolver(p.url)
-	case kindHTTP:
-		return dcs.Plain(dcs.PlainOptions{Dial: (&httpConnectDialer{u: p.url}).DialContext}), nil
 	case kindMTProxy:
 		r, err := dcs.MTProxy(p.addr, p.secret, dcs.MTProxyOptions{})
 		if err != nil {
@@ -129,62 +122,4 @@ func socksResolver(u *url.URL) (dcs.Resolver, error) {
 		return nil, errors.New("socks dialer does not support contexts")
 	}
 	return dcs.Plain(dcs.PlainOptions{Dial: cd.DialContext}), nil
-}
-
-// httpConnectDialer dials TCP through an HTTP(S) proxy using the CONNECT method.
-type httpConnectDialer struct {
-	u *url.URL
-}
-
-func (h *httpConnectDialer) DialContext(ctx context.Context, network, addr string) (net.Conn, error) {
-	var d net.Dialer
-	conn, err := d.DialContext(ctx, network, h.u.Host)
-	if err != nil {
-		return nil, errors.Wrap(err, "dial proxy")
-	}
-
-	req := "CONNECT " + addr + " HTTP/1.1\r\nHost: " + addr + "\r\n"
-	if u := h.u.User; u != nil {
-		auth := base64.StdEncoding.EncodeToString([]byte(u.String()))
-		req += "Proxy-Authorization: Basic " + auth + "\r\n"
-	}
-	req += "\r\n"
-
-	if _, err := conn.Write([]byte(req)); err != nil {
-		_ = conn.Close()
-		return nil, errors.Wrap(err, "write CONNECT")
-	}
-	if err := readConnectResponse(conn); err != nil {
-		_ = conn.Close()
-		return nil, err
-	}
-	return conn, nil
-}
-
-// readConnectResponse reads the proxy's CONNECT reply and checks for 200.
-func readConnectResponse(conn net.Conn) error {
-	buf := make([]byte, 0, 128)
-	tmp := make([]byte, 1)
-	for {
-		n, err := conn.Read(tmp)
-		if err != nil {
-			return errors.Wrap(err, "read CONNECT response")
-		}
-		if n == 0 {
-			continue
-		}
-		buf = append(buf, tmp[0])
-		if strings.HasSuffix(string(buf), "\r\n\r\n") {
-			break
-		}
-		if len(buf) > 4096 {
-			return errors.New("CONNECT response too large")
-		}
-	}
-	status := string(buf)
-	if !strings.Contains(status, " 200 ") {
-		line, _, _ := strings.Cut(status, "\r\n")
-		return errors.Errorf("proxy CONNECT failed: %s", line)
-	}
-	return nil
 }

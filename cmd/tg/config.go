@@ -19,8 +19,8 @@ type Config struct {
 	AppID    int    `yaml:"app_id"`
 	AppHash  string `yaml:"app_hash"`
 	BotToken string `yaml:"bot_token,omitempty"`
-	// Proxy is an optional proxy URL: socks5://, socks4://, http(s):// or a
-	// tg://proxy?... / MTProxy link.
+	// Proxy is an optional proxy URL: socks5:// or a tg://proxy?... /
+	// MTProxy link.
 	Proxy string `yaml:"proxy,omitempty"`
 }
 

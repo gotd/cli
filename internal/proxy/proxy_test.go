@@ -14,10 +14,9 @@ func TestParse(t *testing.T) {
 	}{
 		{"socks5", "socks5://user:pass@127.0.0.1:1080", kindSOCKS, false},
 		{"socks5h", "socks5h://127.0.0.1:1080", kindSOCKS, false},
-		{"http", "http://127.0.0.1:8080", kindHTTP, false},
-		{"https", "https://proxy.example:443", kindHTTP, false},
 		{"mtproxy", "tg://proxy?server=1.2.3.4&port=443&secret=deadbeef", kindMTProxy, false},
 		{"mtproxy missing secret", "tg://proxy?server=1.2.3.4&port=443", 0, true},
+		{"http unsupported", "http://127.0.0.1:8080", 0, true},
 		{"unknown scheme", "ftp://x", 0, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

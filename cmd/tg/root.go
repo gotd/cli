@@ -67,7 +67,7 @@ below apply to every command.`,
 	pf.StringVarP(&a.configPath, "config", "c", defaultConfigPath(), "config file to use")
 	pf.StringVarP(&a.outputFormat, "output", "o", string(output.Text), "output format: text or json")
 	pf.StringVar(&a.proxyURL, "proxy", os.Getenv("TG_PROXY"),
-		"proxy URL: socks5://, http(s)://, or tg://proxy?... (overrides config)")
+		"proxy URL: socks5:// or tg://proxy?... (overrides config)")
 	pf.BoolVar(&a.debugInvoker, "debug-invoker", false, "use pretty-printing debug invoker")
 	pf.BoolVar(&a.testServer, "test", false, "connect to the telegram test server")
 	_ = root.RegisterFlagCompletionFunc("output",
@@ -102,6 +102,7 @@ below apply to every command.`,
 		a.newDraftsCmd(),
 		a.newLinkCmd(),
 		a.newContextCmd(),
+		a.newScheduleCmd(),
 		a.newReadCmd(),
 		a.newUploadCmd(),
 		a.newDownloadCmd(),

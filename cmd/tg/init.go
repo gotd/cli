@@ -66,7 +66,7 @@ A bot token is optional — most commands use a personal user session created wi
 	fs.IntVar(&appID, "app-id", envInt("APP_ID"), "telegram app ID (required)")
 	fs.StringVar(&appHash, "app-hash", os.Getenv("APP_HASH"), "telegram app hash (required)")
 	fs.StringVar(&token, "token", os.Getenv("BOT_TOKEN"), "optional telegram bot token")
-	fs.StringVar(&proxy, "proxy", os.Getenv("TG_PROXY"), "optional proxy URL (socks5://, http://, tg://proxy?...)")
+	fs.StringVar(&proxy, "proxy", os.Getenv("TG_PROXY"), "optional proxy URL (socks5://, tg://proxy?...)")
 
 	return cmd
 }
