@@ -14,6 +14,7 @@ import (
 const (
 	groupAuth      = "auth"
 	groupMessaging = "messaging"
+	groupChats     = "chats"
 )
 
 func defaultConfigPath() string {
@@ -76,6 +77,7 @@ below apply to every command.`,
 	root.AddGroup(
 		&cobra.Group{ID: groupAuth, Title: "Authentication & setup:"},
 		&cobra.Group{ID: groupMessaging, Title: "Messaging:"},
+		&cobra.Group{ID: groupChats, Title: "Chats & contacts:"},
 	)
 
 	root.AddCommand(
@@ -109,6 +111,10 @@ below apply to every command.`,
 		a.newAlbumCmd(),
 		a.newStickersCmd(),
 		a.newDownloadCmd(),
+		a.newMuteCmd(),
+		a.newUnmuteCmd(),
+		a.newArchiveCmd(),
+		a.newUnarchiveCmd(),
 	)
 	root.AddCommand(newDocsCmd(root))
 
