@@ -127,6 +127,11 @@ below apply to every command.`,
 		a.newParticipantsCmd(),
 		a.newAdminsCmd(),
 		a.newBannedCmd(),
+		a.newPromoteCmd(),
+		a.newDemoteCmd(),
+		a.newBanCmd(),
+		a.newUnbanCmd(),
+		a.newSlowModeCmd(),
 	)
 	root.AddCommand(newDocsCmd(root))
 
