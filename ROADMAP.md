@@ -157,8 +157,8 @@ These directly cover "upload files to myself, list chats, mark chats as read, re
 
 ### Phase 6 — Realtime (high value for agents)
 
-- [ ] `tg watch <peer>` — stream new messages as JSON lines; the agent's input loop.
-- [ ] `tg wait` — block until a new (or settled) incoming message, with timeout.
+- [x] `tg watch <peer>` — stream new messages as JSON lines; the agent's input loop.
+- [x] `tg wait` — block until a new (or settled) incoming message, with timeout.
 - [ ] Backed by `gotd/td` update handlers; `NoUpdates: true` (set in `app.go` today) must
       become conditional.
 
