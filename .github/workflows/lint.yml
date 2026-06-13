@@ -37,21 +37,7 @@ jobs:
         uses: actions/setup-go@v6.4.0
         with:
           go-version: "1.25"
-
-      - name: Get Go environment
-        id: go-env
-        run: |
-          echo "::set-output name=cache::$(go env GOCACHE)"
-          echo "::set-output name=modcache::$(go env GOMODCACHE)"
-      - name: Set up cache
-        uses: actions/cache@v4.2.3
-        with:
-          path: |
-            ${{ steps.go-env.outputs.cache }}
-            ${{ steps.go-env.outputs.modcache }}
-          key: check-mod-${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
-          restore-keys: |
-            check-mod-${{ runner.os }}-go-
+          # setup-go provides module/build caching out of the box.
 
       - name: Download dependencies
         run: go mod download && go mod tidy
