@@ -51,11 +51,12 @@ func asInputChannel(ctx context.Context, m *peerManager, arg string) (tg.InputCh
 
 func (a *app) newCreateGroupCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "create-group <title> <user>...",
-		Short:   "Create a basic group with members",
+		Use:     "create-group <title> [user]...",
+		Short:   "Create a basic group, optionally with members",
 		GroupID: groupChats,
-		Args:    cobra.MinimumNArgs(2),
-		Example: `  tg create-group "Project" @alice @bob`,
+		Args:    cobra.MinimumNArgs(1),
+		Example: `  tg create-group "Project" @alice @bob
+  tg create-group "Just me"`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return a.run(cmd.Context(), runParams{auth: authUser}, func(ctx context.Context, api *tg.Client) error {
 				m, err := a.manager(api)
