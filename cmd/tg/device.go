@@ -16,6 +16,8 @@ import (
 // so they are vars (not consts) and builtinAppID is a string for ldflags.
 //
 // See: https://opentele.readthedocs.io/en/latest/documentation/authorization/api/
+//
+//nolint:gochecknoglobals // overridable via -ldflags -X at release time
 var (
 	builtinAppID   = "2040"
 	builtinAppHash = "b18441a1ff607e10a989891a5462e627"
