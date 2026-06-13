@@ -119,38 +119,6 @@ func (a *app) newSetPhotoCmd() *cobra.Command {
 	return cmd
 }
 
-func (a *app) newInviteLinkCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:               "invite-link <peer>",
-		Short:             "Export a chat invite link",
-		GroupID:           groupChats,
-		Args:              cobra.ExactArgs(1),
-		ValidArgsFunction: peerArgCompletion,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return a.run(cmd.Context(), runParams{auth: authUser}, func(ctx context.Context, api *tg.Client) error {
-				m, err := a.manager(api)
-				if err != nil {
-					return err
-				}
-				peer, err := resolvePeer(ctx, m, args[0])
-				if err != nil {
-					return err
-				}
-				res, err := api.MessagesExportChatInvite(ctx, &tg.MessagesExportChatInviteRequest{Peer: peer})
-				if err != nil {
-					return errors.Wrap(err, "messages.exportChatInvite")
-				}
-				inv, ok := res.(*tg.ChatInviteExported)
-				if !ok {
-					return errors.Errorf("unexpected invite type %T", res)
-				}
-				return a.printer.Emit(linkResult{Link: inv.Link})
-			})
-		},
-	}
-	return cmd
-}
-
 // inviteHash extracts the invite hash from a t.me/+hash or joinchat link.
 func inviteHash(link string) string {
 	link = strings.TrimSpace(link)
