@@ -18,6 +18,13 @@ builds:
     goarch:
       - amd64
       - arm64
+      - riscv64
+    # riscv64 is only supported on linux; skip the other OS combinations.
+    ignore:
+      - goos: windows
+        goarch: riscv64
+      - goos: darwin
+        goarch: riscv64
     main: ./cmd/tg
     # Inject built-in app credentials from the APP_ID/APP_HASH secrets at
     # release time. No default: a release build without them fails the CI
