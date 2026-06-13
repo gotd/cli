@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/telegram/peers"
 	"github.com/gotd/td/tg"
 
@@ -41,9 +42,12 @@ func TestIsIDArg(t *testing.T) {
 	}
 }
 
+// selfAliases are the peer strings that target Saved Messages.
+var selfAliases = []string{"", "me", "self", "ME"}
+
 func TestResolvePeerSelf(t *testing.T) {
 	m := newTestManager(t)
-	for _, in := range []string{"", "me", "self", "ME"} {
+	for _, in := range selfAliases {
 		p, err := resolvePeer(context.Background(), m, in)
 		if err != nil {
 			t.Fatalf("resolvePeer(%q): %v", in, err)
@@ -94,5 +98,44 @@ func TestResolvePeerIDUser(t *testing.T) {
 	}
 	if u.UserID != 42 || u.AccessHash != 999 {
 		t.Errorf("input peer = %+v, want id 42 / hash 999", u)
+	}
+}
+
+// TestBuilderForID guards the send path: "id:" must be resolved eagerly via the
+// cache, not handed to sender.Resolve (which rejects the ":" as a bad domain).
+func TestBuilderForID(t *testing.T) {
+	ctx := context.Background()
+	store, err := peercache.Open(filepath.Join(t.TempDir(), "peers.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Save(ctx, peers.Key{Prefix: "users_", ID: 42}, peers.Value{AccessHash: 999}); err != nil {
+		t.Fatal(err)
+	}
+
+	api, mock := newTestAPI(t)
+	mock.Expect().ThenResult(&tg.UserClassVector{Elems: []tg.UserClass{
+		&tg.User{ID: 42, AccessHash: 999, Username: "durov"},
+	}})
+	m := &peerManager{Manager: peers.Options{Storage: store}.Build(api), store: store}
+	sender := message.NewSender(api).WithResolver(peerResolver{pm: m})
+
+	if _, err := builderFor(ctx, m, sender, "id:42"); err != nil {
+		t.Fatalf("builderFor(id:42): %v", err)
+	}
+}
+
+func TestBuilderForSelf(t *testing.T) {
+	store, err := peercache.Open(filepath.Join(t.TempDir(), "peers.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	api, _ := newTestAPI(t)
+	m := &peerManager{Manager: peers.Options{Storage: store}.Build(api), store: store}
+	sender := message.NewSender(api).WithResolver(peerResolver{pm: m})
+	for _, in := range selfAliases {
+		if _, err := builderFor(context.Background(), m, sender, in); err != nil {
+			t.Errorf("builderFor(%q): %v", in, err)
+		}
 	}
 }

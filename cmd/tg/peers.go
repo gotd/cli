@@ -121,22 +121,33 @@ func (a *app) managerFor(api *tg.Client, st *accountState) (*peerManager, error)
 }
 
 // sender returns a message.Sender that resolves peers through the cached
-// manager, so access-hashes persist across invocations.
-func (a *app) sender(api *tg.Client) (*message.Sender, error) {
+// manager, so access-hashes persist across invocations. It also returns the
+// peerManager so builderFor can resolve "id:" peers, which the sender's own
+// resolver cannot (the message package rejects the ":" as an invalid domain
+// before delegating to the resolver).
+func (a *app) sender(api *tg.Client) (*message.Sender, *peerManager, error) {
 	m, err := a.manager(api)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return message.NewSender(api).WithResolver(peerResolver{pm: m}), nil
+	return message.NewSender(api).WithResolver(peerResolver{pm: m}), m, nil
 }
 
 // builderFor returns a request builder targeting peer; the empty string, "me"
-// and "self" target the current account's Saved Messages.
-func builderFor(sender *message.Sender, peer string) *message.RequestBuilder {
+// and "self" target the current account's Saved Messages, and "id:<n>" resolves
+// a cached peer by numeric id.
+func builderFor(ctx context.Context, m *peerManager, sender *message.Sender, peer string) (*message.RequestBuilder, error) {
 	if isSelf(peer) {
-		return sender.Self()
+		return sender.Self(), nil
 	}
-	return sender.Resolve(peer)
+	if isIDArg(peer) {
+		p, err := m.resolveID(ctx, peer)
+		if err != nil {
+			return nil, err
+		}
+		return sender.To(p.InputPeer()), nil
+	}
+	return sender.Resolve(peer), nil
 }
 
 // resolvePeer turns a peer string into an InputPeer using the cached manager.

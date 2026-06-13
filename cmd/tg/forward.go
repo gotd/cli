@@ -41,12 +41,16 @@ Peers are me/self, @username, phone, or a t.me link.`,
 				if err != nil {
 					return err
 				}
-				sender, err := a.sender(api)
+				sender, _, err := a.sender(api)
+				if err != nil {
+					return err
+				}
+				bf, err := builderFor(ctx, m, sender, args[0])
 				if err != nil {
 					return err
 				}
 
-				fwd := builderFor(sender, args[0]).ForwardIDs(fromPeer, ids[0], ids[1:]...)
+				fwd := bf.ForwardIDs(fromPeer, ids[0], ids[1:]...)
 				if dropAuthor {
 					fwd = fwd.DropAuthor()
 				}

@@ -33,12 +33,16 @@ me/self, @username, phone, or a t.me link.`,
 			text := args[2]
 
 			return a.run(cmd.Context(), runParams{auth: authUser}, func(ctx context.Context, api *tg.Client) error {
-				sender, err := a.sender(api)
+				sender, m, err := a.sender(api)
+				if err != nil {
+					return err
+				}
+				bf, err := builderFor(ctx, m, sender, peer)
 				if err != nil {
 					return err
 				}
 
-				b, options := msg.apply(builderFor(sender, peer), text)
+				b, options := msg.apply(bf, text)
 				id, err := unpack.MessageID(b.Reply(replyTo).StyledText(ctx, options...))
 				if err != nil {
 					return errors.Wrap(err, "reply")
