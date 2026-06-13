@@ -83,7 +83,6 @@ below apply to every command.`,
 			return append(cfg.labels(), "all"), cobra.ShellCompDirectiveNoFileComp
 		})
 	pf.BoolVar(&a.debugInvoker, "debug-invoker", false, "use pretty-printing debug invoker")
-	pf.BoolVar(&a.testServer, "test", false, "connect to the telegram test server")
 	_ = root.RegisterFlagCompletionFunc("output",
 		cobra.FixedCompletions(output.Formats(), cobra.ShellCompDirectiveNoFileComp))
 
@@ -97,6 +96,7 @@ below apply to every command.`,
 	root.AddCommand(
 		newInitCmd(a),
 		a.newLoginCmd(),
+		a.newLogoutCmd(),
 		a.newAccountsCmd(),
 		a.newWhoamiCmd(),
 		a.newChatsCmd(),

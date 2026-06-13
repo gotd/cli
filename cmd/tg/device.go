@@ -27,15 +27,12 @@ func effectiveCreds(acc Account, test bool) (appID int, appHash string) {
 	return builtinAppID, builtinAppHash
 }
 
-// deviceConfig mimics Telegram Desktop so the session shows up as a desktop
-// client in Settings → Devices (mirrors tdl's tutil.Device).
+// deviceConfig mimics Telegram Desktop (Windows) so the session shows up as a
+// desktop client in Settings → Devices. It delegates to gotd's built-in preset,
+// which keeps the app version in sync with the bundled tdesktop reference and
+// sends the same initConnection params (including the tz_offset timezone field)
+// as the real client, making the connection indistinguishable from Telegram
+// Desktop's. Pair it with telegram.TDesktopResolver on the transport layer.
 func deviceConfig() telegram.DeviceConfig {
-	return telegram.DeviceConfig{
-		DeviceModel:    "Desktop",
-		SystemVersion:  "Windows 10",
-		AppVersion:     "4.2.4 x64",
-		LangCode:       "en",
-		SystemLangCode: "en-US",
-		LangPack:       "tdesktop",
-	}
+	return telegram.DeviceTDesktopWindows()
 }

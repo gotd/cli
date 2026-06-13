@@ -109,6 +109,7 @@ func (a *app) newAccountsAddCmd() *cobra.Command {
 		appHash string
 		token   string
 		proxy   string
+		test    bool
 	)
 
 	cmd := &cobra.Command{
@@ -129,7 +130,7 @@ func (a *app) newAccountsAddCmd() *cobra.Command {
 				AppHash:  appHash,
 				BotToken: token,
 				Proxy:    proxy,
-				Test:     a.testServer, // persist the global --test flag
+				Test:     test,
 			}
 			if err := saveConfig(a.configPath, a.cfg); err != nil {
 				return err
@@ -144,6 +145,7 @@ func (a *app) newAccountsAddCmd() *cobra.Command {
 	fs.StringVar(&appHash, "app-hash", os.Getenv("APP_HASH"), "telegram app hash")
 	fs.StringVar(&token, "token", "", "optional bot token")
 	fs.StringVar(&proxy, "proxy", "", "optional per-account proxy URL")
+	fs.BoolVar(&test, "test", false, "create the account against the telegram test server")
 
 	return cmd
 }

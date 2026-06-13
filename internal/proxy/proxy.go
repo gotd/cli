@@ -20,6 +20,7 @@ import (
 	xproxy "golang.org/x/net/proxy"
 
 	"github.com/gotd/td/telegram/dcs"
+	"github.com/gotd/td/transport"
 )
 
 // kind classifies a parsed proxy URL.
@@ -121,5 +122,11 @@ func socksResolver(u *url.URL) (dcs.Resolver, error) {
 	if !ok {
 		return nil, errors.New("socks dialer does not support contexts")
 	}
-	return dcs.Plain(dcs.PlainOptions{Dial: cd.DialContext}), nil
+	// Connect like Telegram Desktop over the proxy: Obfuscated2 + abridged
+	// transport, matching the default (no-proxy) TDesktopResolver path.
+	return dcs.Plain(dcs.PlainOptions{
+		Dial:       cd.DialContext,
+		Protocol:   transport.Abridged,
+		Obfuscated: true,
+	}), nil
 }

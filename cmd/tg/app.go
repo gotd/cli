@@ -57,7 +57,6 @@ type app struct {
 	// Global flags, bound to the root command's persistent flags.
 	configPath   string
 	debugInvoker bool
-	testServer   bool
 	outputFormat string
 	proxyURL     string
 	accountFlag  string
@@ -203,12 +202,10 @@ func (a *app) optionsFor(st *accountState, rp runParams, d tg.UpdateDispatcher) 
 		opts.NoUpdates = true
 	}
 	// Test server: the global --test flag or the account's persisted setting.
-	if a.testServer || st.acc.Test {
+	if st.acc.Test {
 		opts.DCList = dcs.Test()
 	}
-	if st.resolver != nil {
-		opts.Resolver = st.resolver
-	}
+	opts.Resolver = st.resolver
 	return opts
 }
 
@@ -226,7 +223,7 @@ func (a *app) connectWith(
 		d = tg.NewUpdateDispatcher()
 	}
 
-	appID, appHash := effectiveCreds(st.acc, a.testServer || st.acc.Test)
+	appID, appHash := effectiveCreds(st.acc, st.acc.Test)
 	client := telegram.NewClient(appID, appHash, a.optionsFor(st, rp, d))
 
 	if err := a.waiter.Run(ctx, func(ctx context.Context) error {
@@ -266,6 +263,11 @@ func (a *app) accountState(label string) (*accountState, error) {
 	resolver, err := proxy.Resolver(proxyURL)
 	if err != nil {
 		return nil, err
+	}
+	if resolver == nil {
+		// No proxy: connect like Telegram Desktop (Obfuscated2 + abridged
+		// transport) instead of gotd's plain default.
+		resolver = telegram.TDesktopResolver()
 	}
 	return &accountState{label: label, acc: acc, resolver: resolver}, nil
 }

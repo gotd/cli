@@ -21,6 +21,7 @@ func newInitCmd(a *app) *cobra.Command {
 		appHash string
 		token   string
 		proxy   string
+		test    bool
 	)
 
 	cmd := &cobra.Command{
@@ -53,7 +54,7 @@ APP_HASH and BOT_TOKEN env vars.`,
 				AppHash:  appHash,
 				BotToken: token,
 				Proxy:    proxy,
-				Test:     a.testServer, // persist the global --test flag
+				Test:     test,
 			}
 			if err := writeConfig(a.configPath, cfg); err != nil {
 				return err
@@ -69,6 +70,7 @@ APP_HASH and BOT_TOKEN env vars.`,
 	fs.StringVar(&appHash, "app-hash", os.Getenv("APP_HASH"), "telegram app hash (default: built-in)")
 	fs.StringVar(&token, "token", os.Getenv("BOT_TOKEN"), "optional telegram bot token")
 	fs.StringVar(&proxy, "proxy", os.Getenv("TG_PROXY"), "optional proxy URL (socks5://, tg://proxy?...)")
+	fs.BoolVar(&test, "test", false, "create the account against the telegram test server")
 
 	return cmd
 }

@@ -7,7 +7,7 @@ require (
 	github.com/go-faster/errors v0.7.1
 	github.com/gotd/contrib v0.21.1
 	github.com/gotd/log/logzap v0.0.1
-	github.com/gotd/td v0.154.0
+	github.com/gotd/td v0.156.0
 	github.com/mdp/qrterminal/v3 v3.2.1
 	github.com/schollz/progressbar/v3 v3.19.0
 	github.com/spf13/cobra v1.10.2

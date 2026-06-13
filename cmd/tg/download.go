@@ -98,7 +98,7 @@ func mediaLocation(m tg.MessageMediaClass) (tg.InputFileLocationClass, string, e
 		if !ok {
 			return nil, "", errors.New("empty document")
 		}
-		return doc.AsInputDocumentFileLocation(), documentFilename(doc), nil
+		return doc.AsInputDocumentFileLocation(""), documentFilename(doc), nil
 	case *tg.MessageMediaPhoto:
 		ph, ok := v.Photo.AsNotEmpty()
 		if !ok {
