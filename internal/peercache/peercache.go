@@ -100,6 +100,35 @@ func (s *Storage) Find(_ context.Context, key peers.Key) (peers.Value, bool, err
 	return peers.Value{AccessHash: hash}, ok, nil
 }
 
+// Peer kinds returned by Kind, matching the type names used in CLI output.
+const (
+	KindUser    = "user"
+	KindChat    = "chat"
+	KindChannel = "channel"
+)
+
+// Kind reports the cached peer kind ("user", "chat" or "channel") for a numeric
+// id, if the peer has been seen before (e.g. via `tg chats list`). Users and
+// channels are checked before chats so a populated access hash wins.
+//
+// gotd's peers.Storage keys entries as "<prefix>:<id>"; the prefixes are
+// unexported there (telegram/peers/storage.go), so we mirror them here.
+func (s *Storage) Kind(id int64) (string, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	idStr := strconv.FormatInt(id, 10)
+	for _, kp := range []struct{ kind, prefix string }{
+		{KindUser, "users_"},
+		{KindChannel, "channel_"},
+		{KindChat, "chats_"},
+	} {
+		if _, ok := s.data.Peers[kp.prefix+":"+idStr]; ok {
+			return kp.kind, true
+		}
+	}
+	return "", false
+}
+
 // SavePhone implements peers.Storage.
 func (s *Storage) SavePhone(_ context.Context, phone string, key peers.Key) error {
 	s.mu.Lock()

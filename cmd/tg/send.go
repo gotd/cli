@@ -35,12 +35,19 @@ func (a *app) newSendCmd() *cobra.Command {
 		Short:   "Send a message to a peer",
 		GroupID: groupMessaging,
 		Long: `Send a text message. With no --peer, the message goes to your own
-Saved Messages, which is handy for notes and agent self-messaging.`,
+Saved Messages, which is handy for notes and agent self-messaging.
+
+A peer with no username or phone can be addressed by its numeric id with the
+"id:" prefix (the "id" field in ` + "`tg chats list --output json`" + `), provided
+it has been cached first by running ` + "`tg chats list`" + `.`,
 		Example: `  # Message yourself (Saved Messages)
   tg send "hello"
 
   # Message a channel or user
   tg send --peer @durov "hi there"
+
+  # Message a peer without a username, by numeric id (cache it first)
+  tg chats list >/dev/null && tg send --peer id:2201861038 "hi"
 
   # HTML formatting, sent silently
   tg send --peer @durov --html --silent "<b>bold</b>"`,
@@ -69,7 +76,7 @@ Saved Messages, which is handy for notes and agent self-messaging.`,
 
 	fs := cmd.Flags()
 	fs.StringVarP(&peer, "peer", "p", "",
-		"peer to write (channel name or username, phone number or deep link); default: yourself")
+		"peer to write (username, phone, deep link, or id:<n>); default: yourself")
 	msg.register(fs)
 	registerPeerCompletion(cmd, "peer")
 

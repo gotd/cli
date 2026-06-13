@@ -10,11 +10,20 @@ import (
 	"github.com/gotd/td/tg"
 )
 
+// resolvePeerArg resolves a single peer string (supporting the "id:" prefix) to
+// a typed peers.Peer.
+func resolvePeerArg(ctx context.Context, m *peerManager, arg string) (peers.Peer, error) {
+	if isIDArg(arg) {
+		return m.resolveID(ctx, arg)
+	}
+	return m.Resolve(ctx, arg)
+}
+
 // resolveUsers resolves peer strings to input users.
-func resolveUsers(ctx context.Context, m *peers.Manager, args []string) ([]tg.InputUserClass, error) {
+func resolveUsers(ctx context.Context, m *peerManager, args []string) ([]tg.InputUserClass, error) {
 	users := make([]tg.InputUserClass, 0, len(args))
 	for _, a := range args {
-		p, err := m.Resolve(ctx, a)
+		p, err := resolvePeerArg(ctx, m, a)
 		if err != nil {
 			return nil, errors.Wrapf(err, "resolve %q", a)
 		}
@@ -28,8 +37,8 @@ func resolveUsers(ctx context.Context, m *peers.Manager, args []string) ([]tg.In
 }
 
 // asInputChannel resolves a peer string to an input channel.
-func asInputChannel(ctx context.Context, m *peers.Manager, arg string) (tg.InputChannelClass, error) {
-	p, err := m.Resolve(ctx, arg)
+func asInputChannel(ctx context.Context, m *peerManager, arg string) (tg.InputChannelClass, error) {
+	p, err := resolvePeerArg(ctx, m, arg)
 	if err != nil {
 		return nil, errors.Wrapf(err, "resolve %q", arg)
 	}

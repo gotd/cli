@@ -53,6 +53,42 @@ func TestStorageRoundTrip(t *testing.T) {
 	}
 }
 
+func TestKind(t *testing.T) {
+	ctx := context.Background()
+	s, err := Open(filepath.Join(t.TempDir(), "peers.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Saved under the prefixes gotd's peers.Manager uses.
+	save := func(prefix string, id, hash int64) {
+		if err := s.Save(ctx, peers.Key{Prefix: prefix, ID: id}, peers.Value{AccessHash: hash}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	save("users_", 42, 111)
+	save("channel_", 7, 222)
+	save("chats_", 9, 0) // basic groups have no access hash
+
+	cases := []struct {
+		id   int64
+		want string
+	}{
+		{42, KindUser},
+		{7, KindChannel},
+		{9, KindChat},
+	}
+	for _, c := range cases {
+		got, ok := s.Kind(c.id)
+		if !ok || got != c.want {
+			t.Errorf("Kind(%d) = %q, %v; want %q", c.id, got, ok, c.want)
+		}
+	}
+	if got, ok := s.Kind(99999); ok {
+		t.Errorf("Kind(99999) = %q, %v; want not found", got, ok)
+	}
+}
+
 func TestFindMissing(t *testing.T) {
 	s, err := Open(filepath.Join(t.TempDir(), "peers.json"))
 	if err != nil {

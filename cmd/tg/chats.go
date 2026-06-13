@@ -66,7 +66,9 @@ func truncate(s string, n int) string {
 }
 
 // listChats fetches up to limit dialogs (archived folder when archived is set).
-func listChats(ctx context.Context, api *tg.Client, limit int, archived bool) (chatList, error) {
+// When m is non-nil, the dialogs' peer entities are persisted to the access-hash
+// cache, so peers without a username/phone can later be addressed by "id:<n>".
+func listChats(ctx context.Context, api *tg.Client, m *peerManager, limit int, archived bool) (chatList, error) {
 	folder := 0
 	if archived {
 		folder = 1
@@ -75,7 +77,11 @@ func listChats(ctx context.Context, api *tg.Client, limit int, archived bool) (c
 	iter := query.GetDialogs(api).FolderID(folder).Iter()
 	now := time.Now().Unix()
 
-	var out chatList
+	var (
+		out   chatList
+		users = map[int64]*tg.User{}
+		chats = map[int64]tg.ChatClass{}
+	)
 	for iter.Next(ctx) {
 		if len(out.Chats) >= limit {
 			break
@@ -100,9 +106,33 @@ func listChats(ctx context.Context, api *tg.Client, limit int, archived bool) (c
 			item.LastDate = msg.Date
 		}
 		out.Chats = append(out.Chats, item)
+
+		for id, u := range elem.Entities.Users() {
+			users[id] = u
+		}
+		for id, c := range elem.Entities.Chats() {
+			chats[id] = c
+		}
+		for id, c := range elem.Entities.Channels() {
+			chats[id] = c
+		}
 	}
 	if err := iter.Err(); err != nil {
 		return chatList{}, errors.Wrap(err, "iterate dialogs")
+	}
+
+	if m != nil {
+		us := make([]tg.UserClass, 0, len(users))
+		for _, u := range users {
+			us = append(us, u)
+		}
+		cs := make([]tg.ChatClass, 0, len(chats))
+		for _, c := range chats {
+			cs = append(cs, c)
+		}
+		if err := m.Apply(ctx, us, cs); err != nil {
+			return chatList{}, errors.Wrap(err, "cache peers")
+		}
 	}
 	return out, nil
 }
@@ -135,7 +165,11 @@ flags and a last-message preview.`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return a.run(cmd.Context(), runParams{auth: authUser}, func(ctx context.Context, api *tg.Client) error {
-				list, err := listChats(ctx, api, limit, archived)
+				m, err := a.manager(api)
+				if err != nil {
+					return err
+				}
+				list, err := listChats(ctx, api, m, limit, archived)
 				if err != nil {
 					return err
 				}

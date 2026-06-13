@@ -35,7 +35,7 @@ func TestListChats(t *testing.T) {
 		[]tg.UserClass{&tg.User{ID: 42, Username: "durov", FirstName: "Pavel"}},
 	))
 
-	list, err := listChats(context.Background(), api, 100, false)
+	list, err := listChats(context.Background(), api, nil, 100, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +67,7 @@ func TestListChatsLimit(t *testing.T) {
 		[]tg.UserClass{&tg.User{ID: 1}, &tg.User{ID: 2}},
 	))
 
-	list, err := listChats(context.Background(), api, 1, false)
+	list, err := listChats(context.Background(), api, nil, 1, false)
 	if err != nil {
 		t.Fatal(err)
 	}
