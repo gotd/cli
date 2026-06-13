@@ -13,15 +13,17 @@ $ go install github.com/gotd/cli/cmd/tg@latest
 
 ## Quick start
 
-Get an `app_id` / `app_hash` from <https://my.telegram.org>, then:
-
 ```console
-$ tg init --app-id APP_ID --app-hash APP_HASH      # write config (bot token optional)
+$ tg init                                          # write config (built-in app credentials)
 $ tg login                                         # QR login — scan once from a logged-in device
 $ tg whoami                                         # confirm you're authenticated
 $ tg send "Hello world"                             # message yourself (Saved Messages)
 $ tg send --peer @gotd_test "Hello world"           # message a peer
 ```
+
+By default `tg` uses **built-in Telegram Desktop credentials** and presents itself
+as a desktop client, so you don't need your own app — but you can provide one from
+<https://my.telegram.org> if you prefer: `tg init --app-id APP_ID --app-hash APP_HASH`.
 
 The config is written to the `gotd` subdirectory of your config dir, e.g.
 `~/.config/gotd/gotd.cli.yaml`. The session persists there too, so subsequent
@@ -99,11 +101,10 @@ $ tg watch --account all            # stream every account concurrently, labeled
 ## Using the test server
 
 Initialize a config against the Telegram **test server**, then log in with a test
-number (no `my.telegram.org` account required to connect, though you still need an
-`app_id`/`app_hash`):
+number (built-in credentials are fine here too):
 
 ```console
-$ tg init --test --app-id APP_ID --app-hash APP_HASH   # persists test: true
-$ tg login --phone 9996621234                          # test number for DC 2; the code is 22222
+$ tg init --test                # persists test: true
+$ tg login --phone 9996621234   # test number for DC 2; the code is 22222
 $ tg whoami
 ```

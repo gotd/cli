@@ -121,9 +121,6 @@ func (a *app) newAccountsAddCmd() *cobra.Command {
 			if label == defaultAccount {
 				return errors.New("use tg init for the default account")
 			}
-			if appID == 0 || appHash == "" {
-				return errors.New("--app-id and --app-hash are required")
-			}
 			if a.cfg.Accounts == nil {
 				a.cfg.Accounts = map[string]Account{}
 			}

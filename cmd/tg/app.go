@@ -191,6 +191,7 @@ func (a *app) optionsFor(st *accountState, rp runParams, d tg.UpdateDispatcher) 
 
 	opts := telegram.Options{
 		Logger:      logzap.New(a.log.Named("tg")),
+		Device:      deviceConfig(),
 		Middlewares: mw,
 		SessionStorage: &session.FileStorage{
 			Path: st.acc.sessionPath(filepath.Dir(a.configPath), st.label, rp.auth.String()),
@@ -225,7 +226,8 @@ func (a *app) connectWith(
 		d = tg.NewUpdateDispatcher()
 	}
 
-	client := telegram.NewClient(st.acc.AppID, st.acc.AppHash, a.optionsFor(st, rp, d))
+	appID, appHash := st.acc.creds()
+	client := telegram.NewClient(appID, appHash, a.optionsFor(st, rp, d))
 
 	if err := a.waiter.Run(ctx, func(ctx context.Context) error {
 		return client.Run(ctx, func(ctx context.Context) error {
@@ -256,9 +258,6 @@ func (a *app) accountState(label string) (*accountState, error) {
 	acc, err := a.cfg.account(label)
 	if err != nil {
 		return nil, err
-	}
-	if !acc.configured() {
-		return nil, errors.Errorf("account %q is not configured", label)
 	}
 	proxyURL := a.proxyURL
 	if proxyURL == "" {

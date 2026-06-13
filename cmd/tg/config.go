@@ -17,8 +17,8 @@ const defaultAccount = "default"
 
 // Account holds the credentials and proxy for one Telegram account.
 type Account struct {
-	AppID    int    `yaml:"app_id"`
-	AppHash  string `yaml:"app_hash"`
+	AppID    int    `yaml:"app_id,omitempty"`
+	AppHash  string `yaml:"app_hash,omitempty"`
 	BotToken string `yaml:"bot_token,omitempty"`
 	// Proxy is an optional proxy URL: socks5:// or a tg://proxy?... link.
 	Proxy string `yaml:"proxy,omitempty"`
@@ -26,9 +26,13 @@ type Account struct {
 	Test bool `yaml:"test,omitempty"`
 }
 
-// configured reports whether the account has credentials.
-func (a Account) configured() bool {
-	return a.AppID != 0 && a.AppHash != ""
+// creds returns the effective app id/hash for the account, falling back to the
+// built-in Telegram Desktop credentials when the user has not set their own.
+func (a Account) creds() (appID int, appHash string) {
+	if a.AppID != 0 && a.AppHash != "" {
+		return a.AppID, a.AppHash
+	}
+	return builtinAppID, builtinAppHash
 }
 
 // Config is the persisted CLI configuration.
@@ -37,8 +41,8 @@ func (a Account) configured() bool {
 // live under `accounts`. The legacy single-account schema keeps working
 // unchanged (see [[roadmap-build-decisions]]).
 type Config struct {
-	AppID    int    `yaml:"app_id"`
-	AppHash  string `yaml:"app_hash"`
+	AppID    int    `yaml:"app_id,omitempty"`
+	AppHash  string `yaml:"app_hash,omitempty"`
 	BotToken string `yaml:"bot_token,omitempty"`
 	Proxy    string `yaml:"proxy,omitempty"`
 	Test     bool   `yaml:"test,omitempty"`
@@ -76,12 +80,10 @@ func (c Config) account(label string) (Account, error) {
 	return a, nil
 }
 
-// labels returns all configured account labels, default first.
+// labels returns all account labels, default first. The default account always
+// exists (using built-in credentials when none are configured).
 func (c Config) labels() []string {
-	var labels []string
-	if c.defaultAcc().configured() {
-		labels = append(labels, defaultAccount)
-	}
+	labels := []string{defaultAccount}
 	keys := make([]string, 0, len(c.Accounts))
 	for k := range c.Accounts {
 		keys = append(keys, k)
@@ -106,9 +108,6 @@ func loadConfig(path string) (Config, error) {
 	}
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return cfg, errors.Wrap(err, "parse config")
-	}
-	if !cfg.defaultAcc().configured() && len(cfg.Accounts) == 0 {
-		return cfg, errors.New("config is missing app_id/app_hash (run tg init)")
 	}
 	return cfg, nil
 }

@@ -29,10 +29,15 @@ func newInitCmd(a *app) *cobra.Command {
 		GroupID: groupAuth,
 		Long: `Create the config file at the path given by the global --config flag.
 
-Only --app-id and --app-hash are required; obtain them at https://my.telegram.org.
-A bot token is optional — most commands use a personal user session created with
-"tg login". Values may also come from APP_ID, APP_HASH and BOT_TOKEN env vars.`,
-		Example: `  # Personal account (then run: tg login)
+All flags are optional. Without --app-id/--app-hash, built-in Telegram Desktop
+credentials are used, so you can run "tg login" right away; provide your own from
+https://my.telegram.org if you prefer. A bot token is optional — most commands use
+a personal user session created with "tg login". Values may also come from APP_ID,
+APP_HASH and BOT_TOKEN env vars.`,
+		Example: `  # Built-in credentials (then run: tg login)
+  tg init
+
+  # Your own app credentials
   tg init --app-id 10 --app-hash abcd
 
   # With an optional bot token
@@ -41,10 +46,6 @@ A bot token is optional — most commands use a personal user session created wi
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if a.configPath == "" {
 				return errors.New("no config path provided")
-			}
-			if appID == 0 || appHash == "" {
-				return errors.New("app-id and app-hash are required " +
-					"(via flags or APP_ID/APP_HASH env)")
 			}
 
 			cfg := Config{
@@ -64,8 +65,8 @@ A bot token is optional — most commands use a personal user session created wi
 	}
 
 	fs := cmd.Flags()
-	fs.IntVar(&appID, "app-id", envInt("APP_ID"), "telegram app ID (required)")
-	fs.StringVar(&appHash, "app-hash", os.Getenv("APP_HASH"), "telegram app hash (required)")
+	fs.IntVar(&appID, "app-id", envInt("APP_ID"), "telegram app ID (default: built-in)")
+	fs.StringVar(&appHash, "app-hash", os.Getenv("APP_HASH"), "telegram app hash (default: built-in)")
 	fs.StringVar(&token, "token", os.Getenv("BOT_TOKEN"), "optional telegram bot token")
 	fs.StringVar(&proxy, "proxy", os.Getenv("TG_PROXY"), "optional proxy URL (socks5://, tg://proxy?...)")
 
