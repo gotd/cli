@@ -136,7 +136,8 @@ func (a *app) selectedLabels() ([]string, error) {
 	}
 	label := a.accountFlag
 	if label == "" {
-		label = defaultAccount
+		// No --account / TG_ACCOUNT: use the configured default account.
+		label = a.cfg.resolvedDefault()
 	}
 	return []string{label}, nil
 }

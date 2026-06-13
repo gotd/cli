@@ -43,8 +43,20 @@ type Config struct {
 	Proxy    string `yaml:"proxy,omitempty"`
 	Test     bool   `yaml:"test,omitempty"`
 
+	// DefaultAccount is the account used when --account / TG_ACCOUNT is unset.
+	// Empty means the top-level "default" account.
+	DefaultAccount string `yaml:"default_account,omitempty"`
+
 	// Accounts holds additional named accounts, usable via --account <label>.
 	Accounts map[string]Account `yaml:"accounts,omitempty"`
+}
+
+// resolvedDefault returns the configured default account label.
+func (c Config) resolvedDefault() string {
+	if c.DefaultAccount != "" {
+		return c.DefaultAccount
+	}
+	return defaultAccount
 }
 
 // defaultAcc returns the top-level account.

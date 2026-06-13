@@ -16,6 +16,7 @@ type accountStatus struct {
 	AppID      int    `json:"app_id"`
 	HasBot     bool   `json:"has_bot"`
 	HasSession bool   `json:"has_session"`
+	Default    bool   `json:"default"`
 }
 
 // accountsResult is the result of `tg accounts`.
@@ -30,7 +31,11 @@ func (r accountsResult) MarshalText(w io.Writer) error {
 		if ac.HasSession {
 			session = "session"
 		}
-		if _, err := fmt.Fprintf(w, "%-16s app_id=%d %s\n", ac.Label, ac.AppID, session); err != nil {
+		marker := " "
+		if ac.Default {
+			marker = "*"
+		}
+		if _, err := fmt.Fprintf(w, "%s %-16s app_id=%d %s\n", marker, ac.Label, ac.AppID, session); err != nil {
 			return err
 		}
 	}
@@ -46,6 +51,7 @@ func (a *app) newAccountsCmd() *cobra.Command {
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			dir := filepath.Dir(a.configPath)
+			def := a.cfg.resolvedDefault()
 			var res accountsResult
 			for _, label := range a.cfg.labels() {
 				acc, err := a.cfg.account(label)
@@ -59,13 +65,41 @@ func (a *app) newAccountsCmd() *cobra.Command {
 					AppID:      acc.AppID,
 					HasBot:     acc.BotToken != "",
 					HasSession: statErr == nil,
+					Default:    label == def,
 				})
 			}
 			return a.printer.Emit(res)
 		},
 	}
 
-	cmd.AddCommand(a.newAccountsAddCmd(), a.newAccountsRemoveCmd())
+	cmd.AddCommand(a.newAccountsAddCmd(), a.newAccountsRemoveCmd(), a.newAccountsDefaultCmd())
+	return cmd
+}
+
+func (a *app) newAccountsDefaultCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "default [label]",
+		Short: "Show or set the default account",
+		Long: `With no argument, print the current default account. With a label, make
+that account the default used when --account / TG_ACCOUNT is not set.`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 {
+				_, err := fmt.Fprintln(cmd.OutOrStdout(), a.cfg.resolvedDefault())
+				return err
+			}
+			label := args[0]
+			if _, err := a.cfg.account(label); err != nil {
+				return err
+			}
+			a.cfg.DefaultAccount = label
+			if err := saveConfig(a.configPath, a.cfg); err != nil {
+				return err
+			}
+			_, err := fmt.Fprintf(cmd.OutOrStdout(), "Default account set to %q\n", label)
+			return err
+		},
+	}
 	return cmd
 }
 
