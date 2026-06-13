@@ -223,7 +223,7 @@ func (a *app) connectWith(
 		d = tg.NewUpdateDispatcher()
 	}
 
-	appID, appHash, err := effectiveCreds(st.acc, st.acc.Test)
+	appID, appHash, err := effectiveCreds(st.acc)
 	if err != nil {
 		return err
 	}

@@ -38,15 +38,13 @@ func builtinCreds() (appID int, appHash string, err error) {
 }
 
 // effectiveCreds resolves the app id/hash for an account: the user's own
-// credentials if set, the gotd test-DC credentials on the test server (which
-// the test phone numbers require), otherwise the build-time-injected built-in
-// credentials. It errors when no credentials are available.
-func effectiveCreds(acc Account, test bool) (appID int, appHash string, err error) {
+// credentials if configured, otherwise the build-time-injected built-in
+// credentials. The test server uses these same credentials too — only the DC
+// list differs (see optionsFor) — so the gotd test credentials are not used.
+// It errors when no credentials are available.
+func effectiveCreds(acc Account) (appID int, appHash string, err error) {
 	if acc.AppID != 0 && acc.AppHash != "" {
 		return acc.AppID, acc.AppHash, nil
-	}
-	if test {
-		return telegram.TestAppID, telegram.TestAppHash, nil
 	}
 	return builtinCreds()
 }

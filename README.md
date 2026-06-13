@@ -116,8 +116,8 @@ $ tg watch --account all            # stream every account concurrently, labeled
 ## Using the test server
 
 Initialize a config against the Telegram **test server**, then log in with a test
-number (the test server uses gotd's test-DC credentials, so no app id/hash is
-needed):
+number. Test mode only switches the DC list — it uses the same app credentials as
+production (so the same app-id/app-hash requirement applies):
 
 ```console
 $ tg init --test                # persists test: true
