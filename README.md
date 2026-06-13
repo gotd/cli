@@ -55,6 +55,19 @@ $ tg chats list --output json | jq '.data.chats[].peer.username'
 $ tg history @durov --limit 20 -o json
 ```
 
+### Agent skill
+
+This repo ships an installable [Claude Code](https://claude.com/claude-code) skill
+(`skills/tg`) that teaches an agent how to drive Telegram with `tg` — setup checks,
+the JSON/peers conventions, the `--yes` safety gate, and common recipes. Install it
+with [`skills`](https://www.npmjs.com/package/skills):
+
+```console
+$ npx skills add https://github.com/gotd/cli --all
+# or a single skill:
+$ npx skills add https://github.com/gotd/cli --skill tg
+```
+
 ## What you can do
 
 Run `tg --help` for the full, grouped command list, or `tg <command> --help` for details.
