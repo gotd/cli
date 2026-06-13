@@ -2,10 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"strings"
 	"testing"
 
 	"github.com/gotd/td/tg"
+
+	"github.com/gotd/cli/internal/output"
 )
 
 func TestNewDevicesResult(t *testing.T) {
@@ -53,6 +56,21 @@ func TestDevicesResultMarshalText(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("output missing %q\n%s", want, out)
 		}
+	}
+}
+
+func TestRunTerminateSession(t *testing.T) {
+	api, mock := newTestAPI(t)
+	mock.ExpectCall(&tg.AccountResetAuthorizationRequest{Hash: 123456789}).
+		ThenResult(&tg.BoolBox{Bool: &tg.BoolTrue{}})
+
+	var buf bytes.Buffer
+	p := output.New(output.Text, &buf)
+	if err := runTerminateSession(context.Background(), api, 123456789, p); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "ok") {
+		t.Errorf("output %q missing ok", buf.String())
 	}
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"time"
 
@@ -218,6 +219,16 @@ func runDevices(ctx context.Context, api *tg.Client, p *output.Printer) error {
 	return p.Emit(newDevicesResult(auths))
 }
 
+// runTerminateSession resets the authorization with the given hash and emits an
+// acknowledgement. It takes only an API client and printer so it is
+// unit-testable with a mock invoker.
+func runTerminateSession(ctx context.Context, api *tg.Client, hash int64, p *output.Printer) error {
+	if _, err := api.AccountResetAuthorization(ctx, hash); err != nil {
+		return errors.Wrap(err, "account.resetAuthorization")
+	}
+	return p.Emit(okResult{OK: true})
+}
+
 func (a *app) newDevicesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "devices",
@@ -235,5 +246,36 @@ device, app (with its app_id in plaintext), location, and last-active time.`,
 			})
 		},
 	}
+	cmd.AddCommand(a.newDevicesTerminateCmd())
+	return cmd
+}
+
+func (a *app) newDevicesTerminateCmd() *cobra.Command {
+	var yes bool
+
+	cmd := &cobra.Command{
+		Use:   "terminate <hash>",
+		Short: "Terminate an active session by its hash",
+		Long: `Terminate (log out) another active session, identified by the hash shown in
+` + "`tg devices --output json`" + `. Destructive: requires --yes. You cannot
+terminate the current session this way; use ` + "`tg logout`" + ` instead.`,
+		Example: `  tg devices terminate 123456789 --yes`,
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if !yes {
+				return errors.New("refusing to terminate session without --yes")
+			}
+			hash, err := strconv.ParseInt(args[0], 10, 64)
+			if err != nil {
+				return errors.Wrapf(err, "invalid session hash %q", args[0])
+			}
+			return a.run(cmd.Context(), runParams{auth: authUser}, func(ctx context.Context, api *tg.Client) error {
+				return runTerminateSession(ctx, api, hash, a.printer)
+			})
+		},
+	}
+
+	cmd.Flags().BoolVar(&yes, "yes", false, "confirm termination")
+
 	return cmd
 }
