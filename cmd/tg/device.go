@@ -1,17 +1,38 @@
 package main
 
-import "github.com/gotd/td/telegram"
+import (
+	"strconv"
 
-// Built-in app credentials, mirroring tdl: the public Telegram Desktop API
-// id/hash. They are used when the user has not configured their own app at
-// https://my.telegram.org. Pairing them with the tdesktop device profile below
-// makes the session appear as a legitimate desktop client.
+	"github.com/gotd/td/telegram"
+)
+
+// Built-in app credentials. The defaults are the public Telegram Desktop API
+// id/hash (matching tdl's "desktop" app), used when the user has not configured
+// their own app at https://my.telegram.org. Pairing them with the tdesktop
+// device profile below makes the session appear as a legitimate desktop client.
+//
+// Release builds override these via -ldflags "-X main.builtinAppID=... -X
+// main.builtinAppHash=..." from APP_ID/APP_HASH secrets (see .goreleaser.yaml),
+// so they are vars (not consts) and builtinAppID is a string for ldflags.
 //
 // See: https://opentele.readthedocs.io/en/latest/documentation/authorization/api/
-const (
-	builtinAppID   = 2040
+var (
+	builtinAppID   = "2040"
 	builtinAppHash = "b18441a1ff607e10a989891a5462e627"
 )
+
+// builtinCreds parses the (possibly ldflags-injected) built-in credentials,
+// falling back to the tdesktop defaults if the injected app id is not a valid
+// integer.
+func builtinCreds() (appID int, appHash string) {
+	id, err := strconv.Atoi(builtinAppID)
+	hash := builtinAppHash
+	if err != nil || hash == "" {
+		// Injected creds missing or malformed: use the tdesktop defaults.
+		id, hash = 2040, "b18441a1ff607e10a989891a5462e627"
+	}
+	return id, hash
+}
 
 // effectiveCreds resolves the app id/hash for an account: the user's own
 // credentials if set, otherwise the built-in Telegram Desktop credentials — or,
@@ -24,7 +45,7 @@ func effectiveCreds(acc Account, test bool) (appID int, appHash string) {
 	if test {
 		return telegram.TestAppID, telegram.TestAppHash
 	}
-	return builtinAppID, builtinAppHash
+	return builtinCreds()
 }
 
 // deviceConfig mimics Telegram Desktop (Windows) so the session shows up as a
