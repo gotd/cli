@@ -20,11 +20,13 @@ builds:
       - arm64
     main: ./cmd/tg
     # Inject built-in app credentials from the APP_ID/APP_HASH secrets at
-    # release time, defaulting to the public tdesktop app when unset.
+    # release time. No default: a release build without them fails the CI
+    # secrets gate, and a snapshot build leaves them empty (credentials must
+    # then be configured per account).
     ldflags:
       - -s -w
-      - -X main.builtinAppID={{ envOrDefault "APP_ID" "2040" }}
-      - -X main.builtinAppHash={{ envOrDefault "APP_HASH" "b18441a1ff607e10a989891a5462e627" }}
+      - -X main.builtinAppID={{ envOrDefault "APP_ID" "" }}
+      - -X main.builtinAppHash={{ envOrDefault "APP_HASH" "" }}
 checksum:
   name_template: 'checksums.txt'
 snapshot:

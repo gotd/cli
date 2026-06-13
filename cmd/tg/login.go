@@ -120,7 +120,8 @@ func (a *app) complete2FA(ctx context.Context, client *telegram.Client, password
 }
 
 // ensureAccount makes sure the selected account exists in the config before
-// login, creating a default entry (built-in credentials) for a new named label.
+// login, creating a default entry (using the build-time app credentials) for a
+// new named label.
 // This lets `tg login --account <new>` work without a prior `tg accounts add`;
 // the default account always exists, and `--account all` is rejected.
 func (a *app) ensureAccount() error {
@@ -164,9 +165,10 @@ later headless use. QR login is the default: scan once from a logged-in device
 where scanning is inconvenient. Two-factor (cloud password) is supported via
 --password, the TG_PASSWORD env var, or an interactive prompt.
 
-A new --account label is created on the fly (with built-in credentials), so you
-don't need "tg accounts add" first; use that only to pre-set custom credentials,
-a bot token, or a per-account proxy. Run "tg init" once before logging in.
+A new --account label is created on the fly (reusing the build-time app
+credentials), so you don't need "tg accounts add" first; use that only to pre-set
+custom credentials, a bot token, or a per-account proxy. Run "tg init" once before
+logging in.
 
 The QR code and all prompts are written to stderr; the resulting account is
 printed to stdout (honoring --output).`,

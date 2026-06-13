@@ -72,7 +72,7 @@ func (c Config) account(label string) (Account, error) {
 }
 
 // labels returns all account labels, default first. The default account always
-// exists (using built-in credentials when none are configured).
+// exists (using the build-time app credentials when none are configured).
 func (c Config) labels() []string {
 	labels := []string{defaultAccount}
 	keys := make([]string, 0, len(c.Accounts))

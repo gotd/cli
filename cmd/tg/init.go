@@ -30,15 +30,15 @@ func newInitCmd(a *app) *cobra.Command {
 		GroupID: groupAuth,
 		Long: `Create the config file at the path given by the global --config flag.
 
-All flags are optional. Without --app-id/--app-hash, built-in Telegram Desktop
-credentials are used, so you can run "tg login" right away; provide your own from
-https://my.telegram.org if you prefer. A bot token is optional — most commands use
-a personal user session created with "tg login". Values may also come from APP_ID,
-APP_HASH and BOT_TOKEN env vars.`,
-		Example: `  # Built-in credentials (then run: tg login)
+App credentials are required. Release binaries embed them at build time, so you
+can run "tg init" then "tg login" right away. When building from source, pass your
+own --app-id/--app-hash from https://my.telegram.org (or set APP_ID/APP_HASH env).
+A bot token is optional — most commands use a personal user session created with
+"tg login". BOT_TOKEN is also read from the env.`,
+		Example: `  # Release binary (embeds credentials), then run: tg login
   tg init
 
-  # Your own app credentials
+  # Your own app credentials (required for source builds)
   tg init --app-id 10 --app-hash abcd
 
   # With an optional bot token

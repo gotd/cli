@@ -15,16 +15,17 @@ the [latest release](https://github.com/gotd/cli/releases/latest).
 ## Quick start
 
 ```console
-$ tg init                                          # write config (built-in app credentials)
+$ tg init                                          # write config (release binaries embed app credentials)
 $ tg login                                         # QR login — scan once from a logged-in device
 $ tg whoami                                         # confirm you're authenticated
 $ tg send "Hello world"                             # message yourself (Saved Messages)
 $ tg send --peer @gotd_test "Hello world"           # message a peer
 ```
 
-By default `tg` uses **built-in Telegram Desktop credentials** and presents itself
-as a desktop client, so you don't need your own app — but you can provide one from
-<https://my.telegram.org> if you prefer: `tg init --app-id APP_ID --app-hash APP_HASH`.
+App credentials are required. The prebuilt [release](https://github.com/gotd/cli/releases/latest)
+binaries embed them at build time and present the session as a desktop client, so
+`tg init` just works. If you build from source, provide your own from
+<https://my.telegram.org>: `tg init --app-id APP_ID --app-hash APP_HASH`.
 
 The config is written to the `gotd` subdirectory of your config dir, e.g.
 `~/.config/gotd/gotd.cli.yaml`. The session persists there too, so subsequent
@@ -115,7 +116,8 @@ $ tg watch --account all            # stream every account concurrently, labeled
 ## Using the test server
 
 Initialize a config against the Telegram **test server**, then log in with a test
-number (built-in credentials are fine here too):
+number (the test server uses gotd's test-DC credentials, so no app id/hash is
+needed):
 
 ```console
 $ tg init --test                # persists test: true

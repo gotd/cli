@@ -3,49 +3,50 @@ package main
 import (
 	"strconv"
 
+	"github.com/go-faster/errors"
+
 	"github.com/gotd/td/telegram"
 )
 
-// Built-in app credentials. The defaults are the public Telegram Desktop API
-// id/hash (matching tdl's "desktop" app), used when the user has not configured
-// their own app at https://my.telegram.org. Pairing them with the tdesktop
-// device profile below makes the session appear as a legitimate desktop client.
+// Built-in app credentials, injected at build time from the APP_ID/APP_HASH
+// secrets via -ldflags "-X main.builtinAppID=... -X main.builtinAppHash=..."
+// (see .goreleaser.yaml). They are empty in plain source builds, so app
+// credentials are mandatory: release binaries carry them, and source builds
+// must supply them per account (tg init/accounts add --app-id --app-hash, or
+// APP_ID/APP_HASH env). There is intentionally no public fallback.
 //
-// Release builds override these via -ldflags "-X main.builtinAppID=... -X
-// main.builtinAppHash=..." from APP_ID/APP_HASH secrets (see .goreleaser.yaml),
-// so they are vars (not consts) and builtinAppID is a string for ldflags.
-//
-// See: https://opentele.readthedocs.io/en/latest/documentation/authorization/api/
-//
-//nolint:gochecknoglobals // overridable via -ldflags -X at release time
+//nolint:gochecknoglobals // injected via -ldflags -X at build time
 var (
-	builtinAppID   = "2040"
-	builtinAppHash = "b18441a1ff607e10a989891a5462e627"
+	builtinAppID   = ""
+	builtinAppHash = ""
 )
 
-// builtinCreds parses the (possibly ldflags-injected) built-in credentials,
-// falling back to the tdesktop defaults if the injected app id is not a valid
-// integer.
-func builtinCreds() (appID int, appHash string) {
-	id, err := strconv.Atoi(builtinAppID)
-	hash := builtinAppHash
-	if err != nil || hash == "" {
-		// Injected creds missing or malformed: use the tdesktop defaults.
-		id, hash = 2040, "b18441a1ff607e10a989891a5462e627"
+// builtinCreds parses the build-time-injected app credentials. It errors when
+// they are absent (a source build) or malformed, rather than falling back to
+// any default.
+func builtinCreds() (appID int, appHash string, err error) {
+	if builtinAppID == "" || builtinAppHash == "" {
+		return 0, "", errors.New("no app credentials: pass --app-id/--app-hash to `tg init` " +
+			"or `tg accounts add` (get them from https://my.telegram.org), " +
+			"or use a release binary that embeds them")
 	}
-	return id, hash
+	id, err := strconv.Atoi(builtinAppID)
+	if err != nil {
+		return 0, "", errors.Wrapf(err, "invalid built-in app id %q", builtinAppID)
+	}
+	return id, builtinAppHash, nil
 }
 
 // effectiveCreds resolves the app id/hash for an account: the user's own
-// credentials if set, otherwise the built-in Telegram Desktop credentials — or,
-// on the test server, gotd's test-DC credentials (which the test phone numbers
-// require).
-func effectiveCreds(acc Account, test bool) (appID int, appHash string) {
+// credentials if set, the gotd test-DC credentials on the test server (which
+// the test phone numbers require), otherwise the build-time-injected built-in
+// credentials. It errors when no credentials are available.
+func effectiveCreds(acc Account, test bool) (appID int, appHash string, err error) {
 	if acc.AppID != 0 && acc.AppHash != "" {
-		return acc.AppID, acc.AppHash
+		return acc.AppID, acc.AppHash, nil
 	}
 	if test {
-		return telegram.TestAppID, telegram.TestAppHash
+		return telegram.TestAppID, telegram.TestAppHash, nil
 	}
 	return builtinCreds()
 }
