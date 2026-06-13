@@ -121,7 +121,6 @@ func (a *app) complete2FA(ctx context.Context, client *telegram.Client, password
 
 func (a *app) newLoginCmd() *cobra.Command {
 	var (
-		usePhone bool
 		phone    string
 		password string
 	)
@@ -142,7 +141,7 @@ printed to stdout (honoring --output).`,
   tg login
 
   # Phone login
-  tg login --phone --phone-number +123456789
+  tg login --phone +123456789
 
   # Non-interactive 2FA password
   TG_PASSWORD=secret tg login`,
@@ -151,6 +150,8 @@ printed to stdout (honoring --output).`,
 			if password == "" {
 				password = os.Getenv("TG_PASSWORD")
 			}
+			usePhone := cmd.Flags().Changed("phone")
+			phone = strings.TrimSpace(phone) // bare --phone (NoOptDefVal) trims to empty → prompt
 			// QR login requires updates (the login-token signal); phone does not.
 			rp := runParams{auth: authUser, updates: !usePhone}
 
@@ -183,8 +184,7 @@ printed to stdout (honoring --output).`,
 	}
 
 	fs := cmd.Flags()
-	fs.BoolVar(&usePhone, "phone", false, "use phone-code login instead of QR")
-	fs.StringVar(&phone, "phone-number", "", "phone number in international format (with --phone)")
+	fs.StringVar(&phone, "phone", "", "phone-code login with this number (international format; use --phone= to be prompted)")
 	fs.StringVar(&password, "password", "", "2FA cloud password (or set TG_PASSWORD)")
 
 	return cmd
