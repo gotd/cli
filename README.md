@@ -12,12 +12,6 @@ Built on [`gotd/td`](https://github.com/gotd/td).
 Download a prebuilt binary or package (`.deb`/`.rpm`/`.apk`) for your platform from
 the [latest release](https://github.com/gotd/cli/releases/latest).
 
-Or, with a Go toolchain:
-
-```console
-$ go install github.com/gotd/cli/cmd/tg@latest
-```
-
 ## Quick start
 
 ```console
