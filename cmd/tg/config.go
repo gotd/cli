@@ -99,6 +99,9 @@ func loadConfig(path string) (Config, error) {
 
 	data, err := os.ReadFile(path) // #nosec G304 // path provided via flag
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return cfg, errors.Errorf("no config at %s; run `tg init` first", path)
+		}
 		return cfg, err
 	}
 	if err := yaml.Unmarshal(data, &cfg); err != nil {

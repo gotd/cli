@@ -82,7 +82,7 @@ Run `tg --help` for the full, grouped command list, or `tg <command> --help` for
 | `-a, --account <label>` | select an account, or `all` to fan out across accounts |
 | `-c, --config <path>` | config file to use |
 | `--proxy <url>` | `socks5://…` or `tg://proxy?…` (MTProxy) |
-| `--test` | connect to the Telegram test server (uses built-in test credentials if no config) |
+| `--test` | connect to the Telegram test server (persisted by `tg init --test`) |
 
 ## Multiple accounts
 
@@ -96,11 +96,14 @@ $ tg chats list --account work
 $ tg watch --account all            # stream every account concurrently, labeled
 ```
 
-## Trying it without credentials
+## Using the test server
 
-The Telegram **test server** works out of the box (no `my.telegram.org` needed):
+Initialize a config against the Telegram **test server**, then log in with a test
+number (no `my.telegram.org` account required to connect, though you still need an
+`app_id`/`app_hash`):
 
 ```console
-$ tg login --test --phone 9996621234   # test number for DC 2; the code is 22222
-$ tg whoami --test
+$ tg init --test --app-id APP_ID --app-hash APP_HASH   # persists test: true
+$ tg login --phone 9996621234                          # test number for DC 2; the code is 22222
+$ tg whoami
 ```

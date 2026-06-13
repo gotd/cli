@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"os"
 	"path/filepath"
 
 	"github.com/go-faster/errors"
@@ -106,17 +105,7 @@ func (a *app) before(cmd *cobra.Command) error {
 
 	cfg, err := loadConfig(a.configPath)
 	if err != nil {
-		// On the test server, fall back to gotd's built-in test app
-		// credentials when there is no config yet, so `tg login --test` works
-		// out of the box.
-		if a.testServer && errors.Is(err, os.ErrNotExist) {
-			if mkErr := os.MkdirAll(filepath.Dir(a.configPath), 0o700); mkErr != nil {
-				return mkErr
-			}
-			cfg = Config{AppID: telegram.TestAppID, AppHash: telegram.TestAppHash}
-		} else {
-			return err
-		}
+		return err
 	}
 	a.cfg = cfg
 	if a.debugInvoker {
