@@ -26,15 +26,6 @@ type Account struct {
 	Test bool `yaml:"test,omitempty"`
 }
 
-// creds returns the effective app id/hash for the account, falling back to the
-// built-in Telegram Desktop credentials when the user has not set their own.
-func (a Account) creds() (appID int, appHash string) {
-	if a.AppID != 0 && a.AppHash != "" {
-		return a.AppID, a.AppHash
-	}
-	return builtinAppID, builtinAppHash
-}
-
 // Config is the persisted CLI configuration.
 //
 // The top-level fields form the "default" account; additional named accounts

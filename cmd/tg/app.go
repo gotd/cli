@@ -226,7 +226,7 @@ func (a *app) connectWith(
 		d = tg.NewUpdateDispatcher()
 	}
 
-	appID, appHash := st.acc.creds()
+	appID, appHash := effectiveCreds(st.acc, a.testServer || st.acc.Test)
 	client := telegram.NewClient(appID, appHash, a.optionsFor(st, rp, d))
 
 	if err := a.waiter.Run(ctx, func(ctx context.Context) error {

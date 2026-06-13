@@ -13,6 +13,20 @@ const (
 	builtinAppHash = "b18441a1ff607e10a989891a5462e627"
 )
 
+// effectiveCreds resolves the app id/hash for an account: the user's own
+// credentials if set, otherwise the built-in Telegram Desktop credentials — or,
+// on the test server, gotd's test-DC credentials (which the test phone numbers
+// require).
+func effectiveCreds(acc Account, test bool) (appID int, appHash string) {
+	if acc.AppID != 0 && acc.AppHash != "" {
+		return acc.AppID, acc.AppHash
+	}
+	if test {
+		return telegram.TestAppID, telegram.TestAppHash
+	}
+	return builtinAppID, builtinAppHash
+}
+
 // deviceConfig mimics Telegram Desktop so the session shows up as a desktop
 // client in Settings → Devices (mirrors tdl's tutil.Device).
 func deviceConfig() telegram.DeviceConfig {
