@@ -22,6 +22,8 @@ type Account struct {
 	BotToken string `yaml:"bot_token,omitempty"`
 	// Proxy is an optional proxy URL: socks5:// or a tg://proxy?... link.
 	Proxy string `yaml:"proxy,omitempty"`
+	// Test connects to the Telegram test server.
+	Test bool `yaml:"test,omitempty"`
 }
 
 // configured reports whether the account has credentials.
@@ -39,6 +41,7 @@ type Config struct {
 	AppHash  string `yaml:"app_hash"`
 	BotToken string `yaml:"bot_token,omitempty"`
 	Proxy    string `yaml:"proxy,omitempty"`
+	Test     bool   `yaml:"test,omitempty"`
 
 	// Accounts holds additional named accounts, usable via --account <label>.
 	Accounts map[string]Account `yaml:"accounts,omitempty"`
@@ -46,7 +49,7 @@ type Config struct {
 
 // defaultAcc returns the top-level account.
 func (c Config) defaultAcc() Account {
-	return Account{AppID: c.AppID, AppHash: c.AppHash, BotToken: c.BotToken, Proxy: c.Proxy}
+	return Account{AppID: c.AppID, AppHash: c.AppHash, BotToken: c.BotToken, Proxy: c.Proxy, Test: c.Test}
 }
 
 // account returns the account config for a label ("" or "default" = top-level).

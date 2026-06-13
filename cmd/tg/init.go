@@ -52,6 +52,7 @@ A bot token is optional — most commands use a personal user session created wi
 				AppHash:  appHash,
 				BotToken: token,
 				Proxy:    proxy,
+				Test:     a.testServer, // persist the global --test flag
 			}
 			if err := writeConfig(a.configPath, cfg); err != nil {
 				return err

@@ -93,7 +93,13 @@ func (a *app) newAccountsAddCmd() *cobra.Command {
 			if a.cfg.Accounts == nil {
 				a.cfg.Accounts = map[string]Account{}
 			}
-			a.cfg.Accounts[label] = Account{AppID: appID, AppHash: appHash, BotToken: token, Proxy: proxy}
+			a.cfg.Accounts[label] = Account{
+				AppID:    appID,
+				AppHash:  appHash,
+				BotToken: token,
+				Proxy:    proxy,
+				Test:     a.testServer, // persist the global --test flag
+			}
 			if err := saveConfig(a.configPath, a.cfg); err != nil {
 				return err
 			}

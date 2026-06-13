@@ -211,7 +211,8 @@ func (a *app) optionsFor(st *accountState, rp runParams, d tg.UpdateDispatcher) 
 	} else {
 		opts.NoUpdates = true
 	}
-	if a.testServer {
+	// Test server: the global --test flag or the account's persisted setting.
+	if a.testServer || st.acc.Test {
 		opts.DCList = dcs.Test()
 	}
 	if st.resolver != nil {
