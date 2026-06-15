@@ -6,7 +6,7 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.2
 	github.com/go-faster/errors v0.7.1
 	github.com/gotd/contrib v0.21.1
-	github.com/gotd/log/logzap v0.0.1
+	github.com/gotd/log/logzap v0.1.1
 	github.com/gotd/td v0.156.0
 	github.com/mdp/qrterminal/v3 v3.2.1
 	github.com/schollz/progressbar/v3 v3.19.0
@@ -33,7 +33,7 @@ require (
 	github.com/go-faster/yaml v0.4.6 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gotd/ige v0.2.2 // indirect
-	github.com/gotd/log v0.0.1 // indirect
+	github.com/gotd/log v0.1.0 // indirect
 	github.com/gotd/neo v0.1.5 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/compress v1.18.6 // indirect
