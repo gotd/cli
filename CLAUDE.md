@@ -17,7 +17,7 @@ guessing — it is the source of truth for generated `tg.*` types and `*tg.Clien
 
 It is checked out locally at **`../td`** or **`/src/gotd/td`**. Prefer the local checkout
 (latest). Also confirm the version the CLI actually compiles against — it may differ from the
-local checkout — with `go list -m -f '{{.Dir}}' github.com/gotd/td` (currently `v0.156.0`), and
+local checkout — with `go list -m -f '{{.Dir}}' github.com/gotd/td` (currently `v0.157.1`), and
 read that module directory when the two disagree.
 
 Useful entry points in `gotd/td`:
