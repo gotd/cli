@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/gabriel-vasile/mimetype v1.4.2
 	github.com/go-faster/errors v0.7.1
-	github.com/gotd/contrib v0.21.1
+	github.com/gotd/contrib v0.24.0
 	github.com/gotd/log/logzap v0.0.1
 	github.com/gotd/td v0.156.0
 	github.com/mdp/qrterminal/v3 v3.2.1
@@ -25,7 +25,7 @@ require (
 	github.com/coder/websocket v1.8.14 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dlclark/regexp2 v1.11.5 // indirect
+	github.com/dlclark/regexp2 v1.12.0 // indirect
 	github.com/fatih/color v1.19.0 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
 	github.com/go-faster/jx v1.2.0 // indirect
