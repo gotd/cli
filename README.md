@@ -28,8 +28,11 @@ binaries embed them at build time and present the session as a desktop client, s
 <https://my.telegram.org>: `tg init --app-id APP_ID --app-hash APP_HASH`.
 
 The config is written to the `gotd` subdirectory of your config dir, e.g.
-`~/.config/gotd/gotd.cli.yaml`. The session persists there too, so subsequent
-commands run headless.
+`~/.config/gotd/gotd.cli.yaml`. The session persists too, so subsequent commands
+run headless. On macOS the session is stored in the login Keychain by default; an
+existing file session is migrated into the Keychain automatically on first use.
+Set `keychain: false` in the config to keep it in a file alongside the config
+instead (useful for headless macOS). Other platforms always use a file.
 
 ### Login options
 

@@ -35,7 +35,7 @@ files are removed even if it fails (e.g. the session is already invalid).`,
 			}
 			st := a.active
 			dir := filepath.Dir(a.configPath)
-			sessionPath := st.acc.sessionPath(dir, st.label, kind.String())
+			store := a.sessionStore(st.label, st.acc, kind.String())
 			cachePath := st.acc.peerCachePath(dir, st.label, kind.String())
 
 			// Best-effort server-side logout.
@@ -57,11 +57,12 @@ files are removed even if it fails (e.g. the session is already invalid).`,
 				_, _ = fmt.Fprintln(os.Stderr, "Warning: remote logout failed, removing local session anyway:", err)
 			}
 
-			// Remove local files regardless.
-			for _, p := range []string{sessionPath, cachePath} {
-				if rmErr := os.Remove(p); rmErr != nil && !os.IsNotExist(rmErr) {
-					return errors.Wrapf(rmErr, "remove %s", p)
-				}
+			// Remove the local session and peer cache regardless.
+			if rmErr := store.Delete(cmd.Context()); rmErr != nil {
+				return errors.Wrap(rmErr, "remove session")
+			}
+			if rmErr := os.Remove(cachePath); rmErr != nil && !os.IsNotExist(rmErr) {
+				return errors.Wrapf(rmErr, "remove %s", cachePath)
 			}
 			return a.printer.Emit(okResult{OK: true})
 		},

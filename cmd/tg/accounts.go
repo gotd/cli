@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 
 	"github.com/go-faster/errors"
 	"github.com/spf13/cobra"
@@ -50,7 +49,6 @@ func (a *app) newAccountsCmd() *cobra.Command {
 		Long:    "List configured accounts (with auth status), or add/remove named accounts.",
 		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			dir := filepath.Dir(a.configPath)
 			def := a.cfg.resolvedDefault()
 			var res accountsResult
 			for _, label := range a.cfg.labels() {
@@ -58,13 +56,15 @@ func (a *app) newAccountsCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				sessionPath := acc.sessionPath(dir, label, kindUser)
-				_, statErr := os.Stat(sessionPath)
+				hasSession, err := a.sessionStore(label, acc, kindUser).Exists(cmd.Context())
+				if err != nil {
+					return errors.Wrapf(err, "check session for %s", label)
+				}
 				res.Accounts = append(res.Accounts, accountStatus{
 					Label:      label,
 					AppID:      acc.AppID,
 					HasBot:     acc.BotToken != "",
-					HasSession: statErr == nil,
+					HasSession: hasSession,
 					Default:    label == def,
 				})
 			}

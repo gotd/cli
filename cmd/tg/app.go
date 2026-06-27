@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"path/filepath"
 
 	"github.com/go-faster/errors"
 	"github.com/spf13/cobra"
@@ -10,7 +9,6 @@ import (
 
 	"github.com/gotd/contrib/middleware/floodwait"
 	"github.com/gotd/log/logzap"
-	"github.com/gotd/td/session"
 	"github.com/gotd/td/telegram"
 	"github.com/gotd/td/telegram/dcs"
 	"github.com/gotd/td/tg"
@@ -189,12 +187,10 @@ func (a *app) optionsFor(st *accountState, rp runParams, d tg.UpdateDispatcher) 
 	}
 
 	opts := telegram.Options{
-		Logger:      logzap.New(a.log.Named("tg")),
-		Device:      deviceConfig(),
-		Middlewares: mw,
-		SessionStorage: &session.FileStorage{
-			Path: st.acc.sessionPath(filepath.Dir(a.configPath), st.label, rp.auth.String()),
-		},
+		Logger:         logzap.New(a.log.Named("tg")),
+		Device:         deviceConfig(),
+		Middlewares:    mw,
+		SessionStorage: a.sessionStore(st.label, st.acc, rp.auth.String()),
 	}
 	if rp.updates {
 		opts.UpdateHandler = d
