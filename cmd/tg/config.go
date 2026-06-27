@@ -42,6 +42,11 @@ type Config struct {
 	// Empty means the top-level "default" account.
 	DefaultAccount string `yaml:"default_account,omitempty"`
 
+	// Keychain stores the session in the macOS Keychain instead of a file.
+	// nil (unset) defaults to on; set `keychain: false` to opt out (e.g. on
+	// headless macOS). Ignored off macOS, where sessions are always files.
+	Keychain *bool `yaml:"keychain,omitempty"`
+
 	// Accounts holds additional named accounts, usable via --account <label>.
 	Accounts map[string]Account `yaml:"accounts,omitempty"`
 }
