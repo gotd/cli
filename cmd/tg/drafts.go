@@ -47,7 +47,11 @@ func saveDraft(ctx context.Context, api *tg.Client, peer tg.InputPeerClass, text
 
 // listDrafts collects drafts from the dialog list.
 func listDrafts(ctx context.Context, api *tg.Client) (draftsResult, error) {
-	iter := query.GetDialogs(api).Iter()
+	// Scan every dialog to collect drafts. The iterator's default batch size is
+	// 1 (one messages.getDialogs RPC per dialog), so without batching this walks
+	// the whole account one round trip at a time. 100 is the per-request maximum
+	// Telegram serves.
+	iter := query.GetDialogs(api).BatchSize(100).Iter()
 	var out draftsResult
 	for iter.Next(ctx) {
 		elem := iter.Value()
