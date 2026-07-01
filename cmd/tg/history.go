@@ -59,7 +59,14 @@ func (h historyResult) MarshalText(w io.Writer) error {
 // listHistory reads up to limit recent messages from peer (newest-first from the
 // API), returning them oldest-first.
 func listHistory(ctx context.Context, api *tg.Client, peer tg.InputPeerClass, limit int) (historyResult, error) {
-	iter := query.Messages(api).GetHistory(peer).Iter()
+	// Fetch in large batches to minimize round trips. The iterator's default
+	// batch size is 1, so it issues one messages.getHistory RPC per message,
+	// which makes larger --limit values extremely slow. Telegram does not
+	// reject a per-request limit above 100 but silently returns fewer/incorrect
+	// results, so cap at 100. Clamp to at least 1: a non-positive batch size
+	// would panic the iterator (it preallocates a slice with that capacity).
+	batch := max(1, min(limit, 100))
+	iter := query.Messages(api).GetHistory(peer).BatchSize(batch).Iter()
 
 	var res historyResult
 	for iter.Next(ctx) {

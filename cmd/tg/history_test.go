@@ -64,3 +64,41 @@ func TestListHistoryLimit(t *testing.T) {
 		t.Fatalf("limit not respected: got %d", len(res.Messages))
 	}
 }
+
+// TestListHistoryBatchSize asserts the per-request limit is batched (capped at
+// 100) instead of the iterator default of 1, and never goes below 1 (a
+// non-positive batch size panics the iterator).
+func TestListHistoryBatchSize(t *testing.T) {
+	for _, tt := range []struct {
+		limit     int
+		wantBatch int
+	}{
+		{limit: 5, wantBatch: 5},
+		{limit: 100, wantBatch: 100},
+		{limit: 350, wantBatch: 100},
+		{limit: 0, wantBatch: 1},
+		{limit: -1, wantBatch: 1},
+	} {
+		var gotBatch int
+		api := newFuncAPI(t, func(req bin.Encoder) (bin.Encoder, error) {
+			r, ok := req.(*tg.MessagesGetHistoryRequest)
+			if !ok {
+				return nil, errors.Errorf("unexpected request %T", req)
+			}
+			gotBatch = r.Limit
+			return &tg.MessagesMessages{
+				Messages: []tg.MessageClass{
+					&tg.Message{ID: 1, PeerID: &tg.PeerUser{UserID: 5}, Date: 1},
+				},
+				Users: []tg.UserClass{&tg.User{ID: 5}},
+			}, nil
+		})
+
+		if _, err := listHistory(context.Background(), api, &tg.InputPeerSelf{}, tt.limit); err != nil {
+			t.Fatalf("limit %d: %v", tt.limit, err)
+		}
+		if gotBatch != tt.wantBatch {
+			t.Errorf("limit %d: request limit = %d, want %d", tt.limit, gotBatch, tt.wantBatch)
+		}
+	}
+}
