@@ -74,7 +74,14 @@ func listChats(ctx context.Context, api *tg.Client, m *peerManager, limit int, a
 		folder = 1
 	}
 
-	iter := query.GetDialogs(api).FolderID(folder).Iter()
+	// Fetch in large batches to minimize round trips. The dialogs iterator's
+	// default batch size is 1, so it issues one messages.getDialogs RPC per
+	// dialog, which makes listing slow. Telegram does not reject a per-request
+	// limit above 100 but silently returns fewer/incorrect results, so cap at
+	// 100. Clamp to at least 1: a non-positive batch size would panic the
+	// iterator (it preallocates a slice with that capacity).
+	batch := max(1, min(limit, 100))
+	iter := query.GetDialogs(api).FolderID(folder).BatchSize(batch).Iter()
 	now := time.Now().Unix()
 
 	var (
