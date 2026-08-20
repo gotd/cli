@@ -43,7 +43,7 @@ func TestIsIDArg(t *testing.T) {
 }
 
 // selfAliases are the peer strings that target Saved Messages.
-var selfAliases = []string{"", "me", "self", "ME"}
+var selfAliases = []string{"", peerSelfMe, peerSelfSelf, "ME"}
 
 func TestResolvePeerSelf(t *testing.T) {
 	m := newTestManager(t)
