@@ -5,7 +5,8 @@ on:
     tags:
       - '*'
 
-# Least privilege: goreleaser only needs to create the release / upload assets.
+# Least privilege for the release repository. Publishing to the separate
+# Homebrew tap uses HOMEBREW_TAP_GITHUB_TOKEN below.
 permissions:
   contents: write
 
@@ -29,10 +30,12 @@ jobs:
         env:
           APP_ID: ${{ secrets.APP_ID }}
           APP_HASH: ${{ secrets.APP_HASH }}
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
         run: |
           missing=
           [ -n "$APP_ID" ] || missing="$missing APP_ID"
           [ -n "$APP_HASH" ] || missing="$missing APP_HASH"
+          [ -n "$HOMEBREW_TAP_GITHUB_TOKEN" ] || missing="$missing HOMEBREW_TAP_GITHUB_TOKEN"
           if [ -n "$missing" ]; then
             echo "::error::Missing required release secret(s):$missing. Set them with: gh secret set <NAME>"
             exit 1
@@ -53,6 +56,8 @@ jobs:
           # tdesktop fallback.
           APP_ID: ${{ secrets.APP_ID }}
           APP_HASH: ${{ secrets.APP_HASH }}
+          # Cross-repository publishing cannot use GITHUB_TOKEN.
+          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}
 
       - name: Upload assets
         uses: actions/upload-artifact@v7.0.1

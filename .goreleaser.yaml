@@ -54,3 +54,20 @@ nfpms:
       - apk
       - deb
       - rpm
+homebrew_casks:
+  - name: tg
+    binaries:
+      - tg
+    homepage: https://github.com/gotd/cli
+    description: Telegram CLI for humans and agents
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/tg"]
+          end
+    repository:
+      owner: gotd
+      name: homebrew-tap
+      branch: main
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
