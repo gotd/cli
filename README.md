@@ -9,8 +9,21 @@ Built on [`gotd/td`](https://github.com/gotd/td).
 
 ## Installation
 
-Download a prebuilt binary or package (`.deb`/`.rpm`/`.apk`) for your platform from
-the [latest release](https://github.com/gotd/cli/releases/latest).
+Install with Homebrew:
+
+```console
+$ brew install --cask gotd/tap/tg
+```
+
+GoReleaser updates the tap when a new version is published, so future updates
+use the regular Homebrew flow:
+
+```console
+$ brew upgrade tg
+```
+
+Alternatively, download a prebuilt binary or package (`.deb`/`.rpm`/`.apk`) for
+your platform from the [latest release](https://github.com/gotd/cli/releases/latest).
 
 ## Quick start
 
