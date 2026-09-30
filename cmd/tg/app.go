@@ -61,7 +61,7 @@ type app struct {
 
 	cfg     Config
 	log     *zap.Logger
-	waiter  *floodwait.Waiter
+	waiter  *floodwait.SimpleWaiter
 	printer *output.Printer
 
 	// active is the account currently being operated on (set per run iteration).
@@ -80,7 +80,7 @@ func newApp() *app {
 	}
 
 	return &app{
-		waiter:  floodwait.NewWaiter(),
+		waiter:  floodwait.NewSimpleWaiter(),
 		log:     defaultLog,
 		printer: output.New(output.Text, nil),
 	}
@@ -225,10 +225,8 @@ func (a *app) connectWith(
 	}
 	client := telegram.NewClient(appID, appHash, a.optionsFor(st, rp, d))
 
-	if err := a.waiter.Run(ctx, func(ctx context.Context) error {
-		return client.Run(ctx, func(ctx context.Context) error {
-			return f(ctx, client, d)
-		})
+	if err := client.Run(ctx, func(ctx context.Context) error {
+		return f(ctx, client, d)
 	}); err != nil && !errors.Is(err, context.Canceled) {
 		return err
 	}
