@@ -7,10 +7,30 @@ groups and channels, and stream new messages in real time.
 
 Built on [`gotd/td`](https://github.com/gotd/td).
 
+> **This is the ApexAiOfficial fork of [`gotd/cli`](https://github.com/gotd/cli).**
+> It stays command- and output-compatible with upstream and adds what an agent
+> needs to test Telegram bots end to end: pressing inline and keyboard buttons,
+> collecting a bot's replies and edits in one call, deep-link starts, bot
+> introspection, richer message JSON (buttons, entities, file details), stable
+> exit codes with JSON errors, a global `--timeout`, and crash-safe session
+> storage shared by concurrent commands. See [Testing bots](#testing-bots).
+
 ## Installation
 
 Download a prebuilt binary or package (`.deb`/`.rpm`/`.apk`) for your platform from
-the [latest release](https://github.com/gotd/cli/releases/latest).
+the [latest upstream release](https://github.com/gotd/cli/releases/latest).
+
+To build this fork from source and install it as `~/.local/bin/tg`:
+
+```console
+$ scripts/install-local.sh                       # reuses the app credentials of the installed tg
+$ APP_ID=… APP_HASH=… scripts/install-local.sh   # or embed your own
+$ scripts/install-local.sh --creds-from /path/to/old/tg
+```
+
+Sessions are tied to the app credentials they were created with, so replacing a
+release binary with a source build should embed the same credentials:
+`--creds-from` reads them from an existing binary's build info.
 
 ## Quick start
 
@@ -52,6 +72,9 @@ Bot login still works too: provide a token via `tg init --token <bot-token>` and
 - **Consistent peers:** every `<peer>` accepts `me`/`self`, `@username`, a phone number,
   or a `t.me/…` link. Resolved access-hashes are cached locally.
 - **Safety:** destructive actions (`delete`, `delete-history`, `unpin-all`) require `--yes`.
+- **Stable exit codes and JSON errors** (see [Exit codes](#exit-codes)), and a global
+  `--timeout` so no call can hang an agent.
+- **Secrets off the command line:** `send`, `reply` and `edit` take `--stdin`.
 - **Shell completion:** `tg completion bash|zsh|fish|powershell`, with dynamic completion
   for peers, accounts, output format and enum flags.
 
@@ -64,13 +87,14 @@ $ tg history @durov --limit 20 -o json
 
 This repo ships an installable [Claude Code](https://claude.com/claude-code) skill
 (`skills/tg`) that teaches an agent how to drive Telegram with `tg` — setup checks,
-the JSON/peers conventions, the `--yes` safety gate, and common recipes. Install it
+the JSON/peers conventions, the `--yes` safety gate, exit codes, common recipes,
+and a bot-testing playbook. Install it
 with [`skills`](https://www.npmjs.com/package/skills):
 
 ```console
-$ npx skills add https://github.com/gotd/cli --all
+$ npx skills add https://github.com/ApexAiOfficial/tg-cli --all
 # or a single skill:
-$ npx skills add https://github.com/gotd/cli --skill tg
+$ npx skills add https://github.com/ApexAiOfficial/tg-cli --skill tg
 ```
 
 ## What you can do
@@ -80,6 +104,8 @@ Run `tg --help` for the full, grouped command list, or `tg <command> --help` for
 - **Messaging:** `send`, `reply`, `edit`, `delete`, `delete-history`, `forward`,
   `history`, `search` (`--global`), `read`, `pin`/`unpin`/`unpin-all`/`pinned`,
   `react`/`unreact`/`reactions`, `draft`/`drafts`, `schedule`, `poll`, `link`, `context`.
+- **Bots:** `click` (press inline/keyboard buttons), `start-bot` (deep-link start),
+  `bot-info`, and `--wait` reply collection on `send`/`reply`/`click`/`start-bot`/`upload`.
 - **Media:** `upload` (with `--type` video/audio/voice/gif/sticker), `album`, `download`,
   `stickers`.
 - **Chats & contacts:** `chats list`, `chat get`/`full`, `mute`/`unmute`,
@@ -94,6 +120,58 @@ Run `tg --help` for the full, grouped command list, or `tg <command> --help` for
 - **Realtime:** `watch [peer]` streams new messages as JSON lines; `wait [peer]` blocks
   until the next message (with `--timeout`).
 
+## Testing bots
+
+`tg` acts as a real user, so an agent (or a test script) can drive any bot the way
+a person would and check what actually happens:
+
+```console
+$ tg bot-info @mybot                                  # descriptions, command menu, menu button
+$ tg send --peer @mybot /start --wait 30s -o json     # send, then collect replies until the bot settles
+$ tg start-bot @mybot ref_42 --wait 20s               # deep link: t.me/mybot?start=ref_42
+$ tg click @mybot --text "Settings" --wait 15s -o json  # press an inline button, get the answer + edits
+$ tg click @mybot 4242 --data "page:2"                # by callback data, on a given message
+$ tg reply @mybot 4250 "Berlin" --wait 20s            # answer a prompt
+$ tg upload --peer @mybot ./sample.pdf --wait 30s     # media handling
+$ tg history @mybot --after 4242 -o json              # everything newer than a message
+```
+
+`--wait <dur>` (on `send`, `reply`, `click`, `start-bot`, `upload`) subscribes to
+updates *before* acting, so a fast reply is never missed, and returns the bot's
+new messages (`replies`, in their latest version: bots that stream by editing are
+handled) and the other messages it edited (`edits`, e.g. the message whose button
+was pressed). It stops when the bot has been quiet for `--settle` (default 2s,
+extended while the bot shows "typing…"), when `--replies N` messages arrived, or
+when `--wait` elapses (`timed_out: true`).
+
+Message JSON includes `reply_markup` (inline buttons or reply keyboard, with each
+button's `type`, `text`, callback `data`, `url`), `entities` (formatting and links,
+with the covered `text`), `file` (`kind`, `name`, `mime`, `size`, `duration`,
+dimensions), `edit_date` and `via_bot_id`. New fields are omitted when empty, so
+existing consumers see the same shape.
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| 0 | success |
+| 1 | other failure |
+| 2 | usage: unknown command, bad flags or arguments |
+| 3 | auth: not logged in or session revoked (`tg login`) |
+| 4 | not found: peer, message or button |
+| 5 | flood wait: rate limited beyond the retry budget |
+| 6 | timeout: `--timeout`, or `wait --timeout` |
+| 7 | other Telegram API error |
+| 130 | interrupted |
+
+Errors are printed to stderr as `tg: <message>`. With `--output json` a failure
+also writes an envelope to stdout, so a parser always gets JSON:
+
+```json
+{"schema": 1, "error": {"code": "flood_wait", "exit": 5, "message": "…", "retry_after": 42,
+  "rpc": {"code": 420, "type": "FLOOD_WAIT", "argument": 42}}}
+```
+
 ## Global flags
 
 | Flag | Description |
@@ -102,6 +180,7 @@ Run `tg --help` for the full, grouped command list, or `tg <command> --help` for
 | `-a, --account <label>` | select an account, or `all` to fan out across accounts |
 | `-c, --config <path>` | config file to use |
 | `--proxy <url>` | `socks5://…` or `tg://proxy?…` (MTProxy) |
+| `--timeout <dur>` | abort the command after this long, exit code 6 (env `TG_TIMEOUT`) |
 | `--test` | connect to the Telegram test server (persisted by `tg init --test`) |
 
 ## Multiple accounts
