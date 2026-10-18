@@ -5,10 +5,11 @@
 // them as JSON in the session directory, keyed per account, so peer resolution
 // is cheap and survives restarts.
 //
-// Several tg processes may share one cache file. Writes replace the file
-// atomically and merge in entries other processes added since it was loaded,
-// so concurrent commands neither corrupt the file nor drop each other's
-// access hashes (re-resolving a username costs a rate-limited RPC).
+// Several tg processes may share one cache file. Each write re-reads the file,
+// merges in entries other processes added, and replaces it atomically, all
+// under an exclusive lock on a sidecar "<file>.lock" (internal/filelock), so
+// concurrent commands neither corrupt the file nor drop each other's access
+// hashes (re-resolving a username costs a rate-limited RPC).
 package peercache
 
 import (
@@ -23,6 +24,7 @@ import (
 	"github.com/gotd/td/telegram/peers"
 
 	"github.com/gotd/cli/internal/atomicfile"
+	"github.com/gotd/cli/internal/filelock"
 )
 
 // Storage is a JSON-file-backed peers.Storage.
@@ -87,10 +89,21 @@ func keyString(k peers.Key) string {
 	return k.Prefix + ":" + strconv.FormatInt(k.ID, 10)
 }
 
-// flush persists the cache; caller must hold mu. Entries another process saved
-// since this cache was loaded are merged in first (this process's values win
-// for keys both know), so concurrent writers do not drop each other's entries.
-func (s *Storage) flush() error {
+// flush persists the cache; caller must hold mu. Under the cross-process file
+// lock, entries another process saved since this cache was loaded are merged
+// in first (this process's values win for keys both know), so concurrent
+// writers do not drop each other's entries.
+func (s *Storage) flush() (rerr error) {
+	unlock, err := filelock.Lock(s.path + ".lock")
+	if err != nil {
+		return errors.Wrap(err, "lock peer cache")
+	}
+	defer func() {
+		if err := unlock(); err != nil && rerr == nil {
+			rerr = errors.Wrap(err, "unlock peer cache")
+		}
+	}()
+
 	onDisk, err := load(s.path)
 	if err != nil {
 		return err
