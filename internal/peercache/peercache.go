@@ -4,6 +4,11 @@
 // access-hashes would be lost between CLI invocations. This storage persists
 // them as JSON in the session directory, keyed per account, so peer resolution
 // is cheap and survives restarts.
+//
+// Several tg processes may share one cache file. Writes replace the file
+// atomically and merge in entries other processes added since it was loaded,
+// so concurrent commands neither corrupt the file nor drop each other's
+// access hashes (re-resolving a username costs a rate-limited RPC).
 package peercache
 
 import (
@@ -16,6 +21,8 @@ import (
 	"github.com/go-faster/errors"
 
 	"github.com/gotd/td/telegram/peers"
+
+	"github.com/gotd/cli/internal/atomicfile"
 )
 
 // Storage is a JSON-file-backed peers.Storage.
@@ -37,48 +44,73 @@ type data struct {
 
 var _ peers.Storage = (*Storage)(nil)
 
-// Open loads the cache at path, creating an empty one if it does not exist.
+// Open loads the cache at path, creating an empty one if it does not exist. An
+// unreadable (corrupt) cache is treated as empty and rewritten on the next
+// save: it only holds data that can be fetched again.
 func Open(path string) (*Storage, error) {
-	s := &Storage{
-		path: path,
-		data: data{
-			Peers:  map[string]int64{},
-			Phones: map[string]string{},
-		},
+	d, err := load(path)
+	if err != nil {
+		return nil, err
 	}
+	return &Storage{path: path, data: d}, nil
+}
 
+// load reads the cache file at path. A missing or corrupt file yields an empty
+// cache; only I/O errors are returned.
+func load(path string) (data, error) {
+	d := data{
+		Peers:  map[string]int64{},
+		Phones: map[string]string{},
+	}
 	raw, err := os.ReadFile(path) // #nosec G304 // path derived from config dir
 	if err != nil {
 		if os.IsNotExist(err) {
-			return s, nil
+			return d, nil
 		}
-		return nil, errors.Wrap(err, "read peer cache")
+		return d, errors.Wrap(err, "read peer cache")
 	}
-	if len(raw) > 0 {
-		if err := json.Unmarshal(raw, &s.data); err != nil {
-			return nil, errors.Wrap(err, "parse peer cache")
-		}
+	var onDisk data
+	if json.Unmarshal(raw, &onDisk) != nil {
+		return d, nil
 	}
-	if s.data.Peers == nil {
-		s.data.Peers = map[string]int64{}
+	for k, v := range onDisk.Peers {
+		d.Peers[k] = v
 	}
-	if s.data.Phones == nil {
-		s.data.Phones = map[string]string{}
+	for k, v := range onDisk.Phones {
+		d.Phones[k] = v
 	}
-	return s, nil
+	d.ContactsHash = onDisk.ContactsHash
+	return d, nil
 }
 
 func keyString(k peers.Key) string {
 	return k.Prefix + ":" + strconv.FormatInt(k.ID, 10)
 }
 
-// flush persists the cache; caller must hold mu.
+// flush persists the cache; caller must hold mu. Entries another process saved
+// since this cache was loaded are merged in first (this process's values win
+// for keys both know), so concurrent writers do not drop each other's entries.
 func (s *Storage) flush() error {
+	onDisk, err := load(s.path)
+	if err != nil {
+		return err
+	}
+	for k, v := range onDisk.Peers {
+		if _, ok := s.data.Peers[k]; !ok {
+			s.data.Peers[k] = v
+		}
+	}
+	for k, v := range onDisk.Phones {
+		if _, ok := s.data.Phones[k]; !ok {
+			s.data.Phones[k] = v
+		}
+	}
+
 	raw, err := json.Marshal(s.data)
 	if err != nil {
 		return errors.Wrap(err, "marshal peer cache")
 	}
-	if err := os.WriteFile(s.path, raw, 0o600); err != nil {
+	if err := atomicfile.Replace(s.path, raw, 0o600); err != nil {
 		return errors.Wrap(err, "write peer cache")
 	}
 	return nil
@@ -100,6 +132,14 @@ func (s *Storage) Find(_ context.Context, key peers.Key) (peers.Value, bool, err
 	return peers.Value{AccessHash: hash}, ok, nil
 }
 
+// Key prefixes of gotd's peers.Storage entries ("<prefix>:<id>"); they are
+// unexported in telegram/peers/storage.go, so they are mirrored here.
+const (
+	prefixUsers   = "users_"
+	prefixChannel = "channel_"
+	prefixChats   = "chats_"
+)
+
 // Peer kinds returned by Kind, matching the type names used in CLI output.
 const (
 	KindUser    = "user"
@@ -110,17 +150,14 @@ const (
 // Kind reports the cached peer kind ("user", "chat" or "channel") for a numeric
 // id, if the peer has been seen before (e.g. via `tg chats list`). Users and
 // channels are checked before chats so a populated access hash wins.
-//
-// gotd's peers.Storage keys entries as "<prefix>:<id>"; the prefixes are
-// unexported there (telegram/peers/storage.go), so we mirror them here.
 func (s *Storage) Kind(id int64) (string, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	idStr := strconv.FormatInt(id, 10)
 	for _, kp := range []struct{ kind, prefix string }{
-		{KindUser, "users_"},
-		{KindChannel, "channel_"},
-		{KindChat, "chats_"},
+		{KindUser, prefixUsers},
+		{KindChannel, prefixChannel},
+		{KindChat, prefixChats},
 	} {
 		if _, ok := s.data.Peers[kp.prefix+":"+idStr]; ok {
 			return kp.kind, true
