@@ -75,9 +75,12 @@ func (v versionInfo) MarshalText(w io.Writer) error {
 	return err
 }
 
+// versionCmdName is the version command, which skipConfig exempts from loading a config.
+const versionCmdName = "version"
+
 func newVersionCmd(a *app) *cobra.Command {
 	return &cobra.Command{
-		Use:     "version",
+		Use:     versionCmdName,
 		Short:   "Print version and build information",
 		GroupID: groupAuth,
 		Long: `Print the version, commit and Go toolchain of this binary, and whether app

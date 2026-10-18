@@ -12,7 +12,6 @@ package atomicfile
 import (
 	"os"
 	"path/filepath"
-	"runtime"
 
 	"github.com/go-faster/errors"
 )
@@ -124,21 +123,4 @@ func writeTemp(path string, data []byte, perm os.FileMode, durable bool) (_ stri
 		return "", errors.Wrap(err, "close temp file")
 	}
 	return tmp, nil
-}
-
-// syncDir makes a rename or link in dir durable. Windows cannot sync a
-// directory handle (NTFS journals metadata itself), so it is skipped there.
-func syncDir(dir string) error {
-	if runtime.GOOS == "windows" {
-		return nil
-	}
-	d, err := os.Open(dir) // #nosec G304 // directory of a caller-provided path
-	if err != nil {
-		return errors.Wrap(err, "open directory")
-	}
-	defer func() { _ = d.Close() }()
-	if err := d.Sync(); err != nil {
-		return errors.Wrap(err, "sync directory")
-	}
-	return nil
 }
