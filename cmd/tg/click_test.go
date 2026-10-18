@@ -207,10 +207,13 @@ func TestMessageText(t *testing.T) {
 		t.Errorf("multi-line stdin: %q, %v", got, err)
 	}
 	for name, run := range map[string]func() error{
-		"missing":    func() error { _, err := messageText(nil, false, nil); return err },
-		"both":       func() error { _, err := messageText([]string{"x"}, true, strings.NewReader("y")); return err },
-		"empty":      func() error { _, err := messageText(nil, true, strings.NewReader("\n")); return err },
-		"oversized":  func() error { _, err := messageText(nil, true, strings.NewReader(strings.Repeat("a", maxStdinText+1))); return err },
+		"missing": func() error { _, err := messageText(nil, false, nil); return err },
+		"both":    func() error { _, err := messageText([]string{"x"}, true, strings.NewReader("y")); return err },
+		"empty":   func() error { _, err := messageText(nil, true, strings.NewReader("\n")); return err },
+		"oversized": func() error {
+			_, err := messageText(nil, true, strings.NewReader(strings.Repeat("a", maxStdinText+1)))
+			return err
+		},
 		"empty argv": func() error { _, err := messageText([]string{""}, false, nil); return err },
 	} {
 		var u usageError
