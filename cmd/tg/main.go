@@ -8,14 +8,39 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/go-faster/errors"
+
 	"github.com/gotd/cli/internal/output"
 )
 
 func main() {
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	ctx, cancel := context.WithCancelCause(context.Background())
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		if sig, ok := <-sigs; ok {
+			cancel(signalError{sig})
+		}
+	}()
+
 	code := execute(ctx, os.Args[1:], os.Stdout, os.Stderr)
-	cancel()
+	signal.Stop(sigs)
+	cancel(nil)
 	os.Exit(code)
+}
+
+// signalError is the cancellation cause recorded when a signal stops tg.
+type signalError struct{ sig os.Signal }
+
+func (e signalError) Error() string { return "interrupted by " + e.sig.String() }
+
+// exitCode is 128 + the signal number, the shell convention (130 for SIGINT,
+// 143 for SIGTERM).
+func (e signalError) exitCode() int {
+	if s, ok := e.sig.(syscall.Signal); ok {
+		return 128 + int(s)
+	}
+	return exitInterrupted
 }
 
 // execute runs the CLI with args and returns the process exit code (see
@@ -30,14 +55,20 @@ func execute(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 
 	err := root.ExecuteContext(ctx)
 	a.close()
+
+	// A signal decides the outcome even when the command then returned nil
+	// (the connection loop treats cancellation as a clean stop).
+	var sig signalError
+	if errors.As(context.Cause(ctx), &sig) {
+		err = sig
+	}
 	if err == nil {
 		return exitOK
 	}
 
 	info := classifyError(err)
-	if ctx.Err() != nil {
-		// Stopped by a signal: whatever failed, failed because of it.
-		info.Code, info.Exit = errClassInterrupted, exitInterrupted
+	if errors.As(err, &sig) {
+		info.Code, info.Exit = errClassInterrupted, sig.exitCode()
 	}
 	if info.Code == errClassTimeout && a.timeout > 0 {
 		info.Message = fmt.Sprintf("timed out after %s (--timeout): %s", a.timeout, info.Message)

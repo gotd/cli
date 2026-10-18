@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 
 	"github.com/go-faster/errors"
@@ -178,5 +179,22 @@ func TestConfigPathFromEnv(t *testing.T) {
 	t.Setenv("TG_CONFIG", "/custom/tg.yaml")
 	if got := defaultConfigPath(); got != "/custom/tg.yaml" {
 		t.Errorf("defaultConfigPath() = %q, want $TG_CONFIG", got)
+	}
+}
+
+func TestExecuteInterrupted(t *testing.T) {
+	// Regression: a command that returns nil after cancellation (the
+	// connection loop swallows context.Canceled) exited 0 on Ctrl-C.
+	for sig, want := range map[syscall.Signal]int{syscall.SIGINT: 130, syscall.SIGTERM: 143} {
+		ctx, cancel := context.WithCancelCause(context.Background())
+		cancel(signalError{sig})
+		var out, errOut bytes.Buffer
+		code := execute(ctx, []string{"-o", "json", "version"}, &out, &errOut)
+		if code != want {
+			t.Errorf("%v: exit = %d, want %d", sig, code, want)
+		}
+		if !strings.Contains(errOut.String(), "interrupted") || !strings.Contains(out.String(), `"code": "interrupted"`) {
+			t.Errorf("%v: stderr = %q, stdout = %q", sig, errOut.String(), out.String())
+		}
 	}
 }

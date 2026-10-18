@@ -23,7 +23,7 @@ const (
 	exitFloodWait   = 5   // rate limited by Telegram beyond the retry budget
 	exitTimeout     = 6   // --timeout or a wait deadline elapsed
 	exitRPC         = 7   // any other Telegram API error
-	exitInterrupted = 130 // stopped by SIGINT/SIGTERM
+	exitInterrupted = 130 // stopped by a signal: 128+signal, 130 for SIGINT, 143 for SIGTERM
 )
 
 // Error classes, reported as "code" in the JSON error envelope. They map 1:1 to
