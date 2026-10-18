@@ -75,26 +75,34 @@ func notFoundf(format string, args ...any) error {
 // errWaitTimeout is returned when a command gave up waiting for an event.
 var errWaitTimeout = errors.New("timed out waiting")
 
-// RPC error types that mean the addressed entity does not exist.
-var notFoundRPCTypes = []string{
-	"USERNAME_NOT_OCCUPIED", "USERNAME_INVALID", "PEER_ID_INVALID",
-	"MESSAGE_ID_INVALID", "MSG_ID_INVALID", "CHANNEL_INVALID",
-	"CHAT_ID_INVALID", "USER_ID_INVALID", "PHONE_NOT_OCCUPIED",
+// notFoundRPCTypes are RPC error types meaning the addressed entity does not
+// exist.
+func notFoundRPCTypes() []string {
+	return []string{
+		"USERNAME_NOT_OCCUPIED", "USERNAME_INVALID", "PEER_ID_INVALID",
+		"MESSAGE_ID_INVALID", "MSG_ID_INVALID", "CHANNEL_INVALID",
+		"CHAT_ID_INVALID", "USER_ID_INVALID", "PHONE_NOT_OCCUPIED",
+	}
 }
 
-// RPC error types that mean the session is unusable and needs `tg login`.
-var authRPCTypes = []string{
-	"AUTH_KEY_UNREGISTERED", "AUTH_KEY_INVALID", "AUTH_KEY_PERM_EMPTY",
-	"SESSION_REVOKED", "SESSION_EXPIRED", "USER_DEACTIVATED", "USER_DEACTIVATED_BAN",
+// authRPCTypes are RPC error types meaning the session is unusable and needs
+// `tg login`.
+func authRPCTypes() []string {
+	return []string{
+		"AUTH_KEY_UNREGISTERED", "AUTH_KEY_INVALID", "AUTH_KEY_PERM_EMPTY",
+		"SESSION_REVOKED", "SESSION_EXPIRED", "USER_DEACTIVATED", "USER_DEACTIVATED_BAN",
+	}
 }
 
 // cobraUsagePrefixes are messages of usage errors cobra raises outside the flag
 // and argument validation hooks (see markUsageErrors).
-var cobraUsagePrefixes = []string{
-	"unknown command ",
-	"required flag(s) ",
-	"if any flags in the group ",
-	"at least one of the flags in the group ",
+func cobraUsagePrefixes() []string {
+	return []string{
+		"unknown command ",
+		"required flag(s) ",
+		"if any flags in the group ",
+		"at least one of the flags in the group ",
+	}
 }
 
 // classifyError maps an error to its class and exit code.
@@ -118,11 +126,11 @@ func classifyError(err error) errorInfo {
 		return set(errClassTimeout, exitTimeout)
 	case errors.Is(err, context.Canceled):
 		return set(errClassInterrupted, exitInterrupted)
-	case errors.As(err, &usage) || hasAnyPrefix(err.Error(), cobraUsagePrefixes):
+	case errors.As(err, &usage) || hasAnyPrefix(err.Error(), cobraUsagePrefixes()):
 		return set(errClassUsage, exitUsage)
-	case errors.Is(err, errNotAuthorized) || tgerr.Is(err, authRPCTypes...) || tgerr.IsCode(err, 401):
+	case errors.Is(err, errNotAuthorized) || tgerr.Is(err, authRPCTypes()...) || tgerr.IsCode(err, 401):
 		return set(errClassAuth, exitAuth)
-	case errors.As(err, &notFound) || tgerr.Is(err, notFoundRPCTypes...):
+	case errors.As(err, &notFound) || tgerr.Is(err, notFoundRPCTypes()...):
 		return set(errClassNotFound, exitNotFound)
 	}
 	if d, ok := tgerr.AsFloodWait(err); ok {

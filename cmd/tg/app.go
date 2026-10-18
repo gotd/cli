@@ -181,11 +181,14 @@ func (a *app) ensureActive() error {
 	return a.activate(labels[0], false)
 }
 
+// helpCmdName is cobra's built-in help command.
+const helpCmdName = "help"
+
 // skipConfig reports whether the command runs without a loaded config/session.
 func skipConfig(cmd *cobra.Command) bool {
 	for c := cmd; c != nil; c = c.Parent() {
 		switch c.Name() {
-		case "init", "docs", "completion", "help", "version",
+		case "init", docsCmdName, "completion", helpCmdName, "version",
 			cobra.ShellCompRequestCmd, cobra.ShellCompNoDescRequestCmd:
 			return true
 		}

@@ -67,9 +67,9 @@ func TestKind(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	save("users_", 42, 111)
-	save("channel_", 7, 222)
-	save("chats_", 9, 0) // basic groups have no access hash
+	save(prefixUsers, 42, 111)
+	save(prefixChannel, 7, 222)
+	save(prefixChats, 9, 0) // basic groups have no access hash
 
 	cases := []struct {
 		id   int64
@@ -113,10 +113,10 @@ func TestConcurrentWritersMerge(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := a.Save(ctx, peers.Key{Prefix: "users_", ID: 1}, peers.Value{AccessHash: 11}); err != nil {
+	if err := a.Save(ctx, peers.Key{Prefix: prefixUsers, ID: 1}, peers.Value{AccessHash: 11}); err != nil {
 		t.Fatal(err)
 	}
-	if err := b.Save(ctx, peers.Key{Prefix: "users_", ID: 2}, peers.Value{AccessHash: 22}); err != nil {
+	if err := b.Save(ctx, peers.Key{Prefix: prefixUsers, ID: 2}, peers.Value{AccessHash: 22}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -125,7 +125,7 @@ func TestConcurrentWritersMerge(t *testing.T) {
 		t.Fatal(err)
 	}
 	for id, want := range map[int64]int64{1: 11, 2: 22} {
-		v, found, err := c.Find(ctx, peers.Key{Prefix: "users_", ID: id})
+		v, found, err := c.Find(ctx, peers.Key{Prefix: prefixUsers, ID: id})
 		if err != nil || !found || v.AccessHash != want {
 			t.Errorf("peer %d: Find = %+v, %v, %v; want hash %d", id, v, found, err, want)
 		}
@@ -144,7 +144,7 @@ func TestCorruptCacheIsRebuilt(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open should tolerate a corrupt cache: %v", err)
 	}
-	key := peers.Key{Prefix: "users_", ID: 5}
+	key := peers.Key{Prefix: prefixUsers, ID: 5}
 	if err := s.Save(ctx, key, peers.Value{AccessHash: 55}); err != nil {
 		t.Fatal(err)
 	}

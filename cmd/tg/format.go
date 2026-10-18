@@ -189,6 +189,19 @@ func buildMessageItem(msg *tg.Message, ent peer.Entities) messageItem {
 	return item
 }
 
+// File kinds reported in fileInfo.Kind. The upload --type values share the
+// names of the document kinds.
+const (
+	fileKindFile      = "file"
+	fileKindPhoto     = "photo"
+	fileKindVideo     = "video"
+	fileKindVideoNote = "video_note"
+	fileKindAudio     = "audio"
+	fileKindVoice     = "voice"
+	fileKindAnimation = "animation"
+	fileKindSticker   = "sticker"
+)
+
 // fileInfo describes a message's document or photo.
 type fileInfo struct {
 	// Kind refines a document: "file", "video", "video_note", "audio",
@@ -216,7 +229,7 @@ func newFileInfo(m tg.MessageMediaClass) *fileInfo {
 		if !ok {
 			return nil
 		}
-		info := &fileInfo{Kind: "photo", MIME: "image/jpeg"}
+		info := &fileInfo{Kind: fileKindPhoto, MIME: "image/jpeg"}
 		for _, s := range ph.Sizes {
 			if size, ok := s.(*tg.PhotoSize); ok && size.W*size.H >= info.Width*info.Height {
 				info.Width, info.Height, info.Size = size.W, size.H, int64(size.Size)
@@ -236,21 +249,21 @@ func newFileInfo(m tg.MessageMediaClass) *fileInfo {
 
 // documentInfo classifies a document by its attributes.
 func documentInfo(doc *tg.Document) *fileInfo {
-	info := &fileInfo{Kind: "file", MIME: doc.MimeType, Size: doc.Size}
+	info := &fileInfo{Kind: fileKindFile, MIME: doc.MimeType, Size: doc.Size}
 	for _, attr := range doc.Attributes {
 		switch a := attr.(type) {
 		case *tg.DocumentAttributeFilename:
 			info.Name = a.FileName
 		case *tg.DocumentAttributeVideo:
-			info.Kind = "video"
+			info.Kind = fileKindVideo
 			if a.RoundMessage {
-				info.Kind = "video_note"
+				info.Kind = fileKindVideoNote
 			}
 			info.Duration, info.Width, info.Height = a.Duration, a.W, a.H
 		case *tg.DocumentAttributeAudio:
-			info.Kind = "audio"
+			info.Kind = fileKindAudio
 			if a.Voice {
-				info.Kind = "voice"
+				info.Kind = fileKindVoice
 			}
 			info.Duration = float64(a.Duration)
 		case *tg.DocumentAttributeImageSize:
@@ -261,9 +274,9 @@ func documentInfo(doc *tg.Document) *fileInfo {
 	for _, attr := range doc.Attributes {
 		switch attr.(type) {
 		case *tg.DocumentAttributeAnimated:
-			info.Kind = "animation"
+			info.Kind = fileKindAnimation
 		case *tg.DocumentAttributeSticker:
-			info.Kind = "sticker"
+			info.Kind = fileKindSticker
 		}
 	}
 	return info

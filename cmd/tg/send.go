@@ -25,7 +25,7 @@ func (r sentResult) MarshalText(w io.Writer) error {
 	if _, err := fmt.Fprintf(w, "sent message #%d\n", r.MessageID); err != nil {
 		return err
 	}
-	return r.conversation.marshalText(w)
+	return r.marshalText(w)
 }
 
 func (a *app) newSendCmd() *cobra.Command {

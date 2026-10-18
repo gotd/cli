@@ -78,7 +78,7 @@ func (r clickResult) MarshalText(w io.Writer) error {
 			return err
 		}
 	}
-	return r.conversation.marshalText(w)
+	return r.marshalText(w)
 }
 
 // keyboardMessage returns the message whose keyboard to press: message id, or

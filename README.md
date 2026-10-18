@@ -178,7 +178,7 @@ also writes an envelope to stdout, so a parser always gets JSON:
 | --- | --- |
 | `-o, --output text\|json` | output format (default `text`) |
 | `-a, --account <label>` | select an account, or `all` to fan out across accounts |
-| `-c, --config <path>` | config file to use |
+| `-c, --config <path>` | config file to use (env `TG_CONFIG`) |
 | `--proxy <url>` | `socks5://…` or `tg://proxy?…` (MTProxy) |
 | `--timeout <dur>` | abort the command after this long, exit code 6 (env `TG_TIMEOUT`) |
 | `--test` | connect to the Telegram test server (persisted by `tg init --test`) |

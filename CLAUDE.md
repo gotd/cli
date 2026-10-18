@@ -58,7 +58,7 @@ Commits must follow Conventional Commits (`feat(...)`, `ci:`, `fix:`, …) — e
 The whole CLI lives in `cmd/tg/` (package `main`). Supporting packages are under `internal/`.
 
 **Command pattern.** Each command is a `func (a *app) newXxxCmd() *cobra.Command` method
-(spf13/cobra) registered in `root.go`'s `newRootCmd`. Commands carry a `GroupID`
+(spf13/cobra) registered in `root.go`'s `newRoot`. Commands carry a `GroupID`
 (`groupAuth`/`groupMessaging`/`groupChats`/`groupProfile`). Parent-with-subcommands is done via
 `cmd.AddCommand(...)` (see `devices`, `chats`, `invite-link`).
 

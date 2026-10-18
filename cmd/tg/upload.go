@@ -58,12 +58,12 @@ func (r uploadResult) MarshalText(w io.Writer) error {
 			return err
 		}
 	}
-	return r.conversation.marshalText(w)
+	return r.marshalText(w)
 }
 
 // documentTypes are the allowed values of the --type flag.
 func documentTypes() []string {
-	return []string{"file", "video", "audio", "voice", "gif", "sticker"}
+	return []string{fileKindFile, fileKindVideo, fileKindAudio, fileKindVoice, "gif", fileKindSticker}
 }
 
 func detectMIME(f io.ReadSeeker) (*mimetype.MIME, error) {
@@ -94,18 +94,18 @@ func prepareFile(
 
 	if v := uf.docType.value; v != "" {
 		switch v {
-		case "file":
+		case fileKindFile:
 			return file.ForceFile(true).MIME(mime)
-		case "video":
+		case fileKindVideo:
 			return file.Video()
-		case "audio":
+		case fileKindAudio:
 			return file.Audio()
-		case "voice":
+		case fileKindVoice:
 			return file.Voice()
 		case "gif":
 			return file.MIME(message.DefaultGifMIME).
 				Attributes(&tg.DocumentAttributeAnimated{})
-		case "sticker":
+		case fileKindSticker:
 			return file.UploadedSticker()
 		default:
 			panic("unreachable: unknown type" + v)

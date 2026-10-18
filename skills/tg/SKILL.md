@@ -15,6 +15,11 @@ gates.
 `tg` needs a one-time config + login. Verify first, and stop to ask the user if
 not authenticated — login is interactive and must be done by a human.
 
+If the user's instructions (CLAUDE.md, memory) name a config path or account
+label, pass them on **every** call (`-c <path> -a <label>`) and never run
+`tg init` or `tg login` yourself in that setup: a missing `-c` only means the
+default config is absent, not that tg is unconfigured.
+
 ```bash
 tg whoami -o json   # authenticated → {"schema":1,"data":{...}}; else errors
 ```
@@ -186,7 +191,7 @@ tg whoami --bot
 | --- | --- |
 | `-o, --output text\|json` | output format (use `json` for parsing) |
 | `-a, --account <label>` | pick an account, or `all` to fan out |
-| `-c, --config <path>` | config file to use |
+| `-c, --config <path>` | config file to use (env `TG_CONFIG`) |
 | `--proxy <url>` | `socks5://…` or `tg://proxy?…` (MTProxy) |
 | `--timeout <dur>` | abort after this long, exit code 6 (env `TG_TIMEOUT`) |
 

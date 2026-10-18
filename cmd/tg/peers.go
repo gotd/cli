@@ -21,6 +21,12 @@ import (
 // cached (its access hash is stored) by a prior command like `tg chats list`.
 const peerIDPrefix = "id:"
 
+// peerMe and peerSelf address the current account (its Saved Messages).
+const (
+	peerMe   = "me"
+	peerSelf = "self"
+)
+
 // peerManager bundles a peers.Manager with the cache store it is built on, so
 // peer resolution can consult the cache for "id:" lookups. It embeds the
 // manager, so all of its methods remain available directly.
@@ -63,7 +69,7 @@ func isIDArg(arg string) bool {
 // Messages: the empty string, "me" or "self" (case-insensitive).
 func isSelf(peer string) bool {
 	switch strings.ToLower(strings.TrimSpace(peer)) {
-	case "", "me", "self":
+	case "", peerMe, peerSelf:
 		return true
 	default:
 		return false

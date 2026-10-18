@@ -173,3 +173,10 @@ func TestParseMessageID(t *testing.T) {
 		}
 	}
 }
+
+func TestConfigPathFromEnv(t *testing.T) {
+	t.Setenv("TG_CONFIG", "/custom/tg.yaml")
+	if got := defaultConfigPath(); got != "/custom/tg.yaml" {
+		t.Errorf("defaultConfigPath() = %q, want $TG_CONFIG", got)
+	}
+}

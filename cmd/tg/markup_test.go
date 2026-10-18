@@ -229,3 +229,23 @@ func TestMessageItemJSONCompat(t *testing.T) {
 		t.Errorf("json = %s, want %s", got, want)
 	}
 }
+
+// TestSentResultJSON pins the send/reply result: unchanged without --wait,
+// and with a "replies" list (never null) when waiting.
+func TestSentResultJSON(t *testing.T) {
+	plain, err := json.Marshal(sentResult{Peer: "@bot", MessageID: 7})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `{"peer":"@bot","message_id":7}`; string(plain) != want {
+		t.Errorf("without --wait: %s, want %s", plain, want)
+	}
+
+	waited, err := json.Marshal(sentResult{MessageID: 7, conversation: &conversation{Replies: []messageItem{}, TimedOut: true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `{"message_id":7,"replies":[],"timed_out":true}`; string(waited) != want {
+		t.Errorf("with --wait: %s, want %s", waited, want)
+	}
+}

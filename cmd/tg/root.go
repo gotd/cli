@@ -20,7 +20,11 @@ const (
 // cmdList is the common "list" subcommand verb.
 const cmdList = "list"
 
+// defaultConfigPath is $TG_CONFIG, or gotd/gotd.cli.yaml in the user config dir.
 func defaultConfigPath() string {
+	if p := os.Getenv("TG_CONFIG"); p != "" {
+		return p
+	}
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		return ""
@@ -43,12 +47,6 @@ func normalizeFlag(_ *pflag.FlagSet, name string) pflag.NormalizedName {
 		name = "type"
 	}
 	return pflag.NormalizedName(name)
-}
-
-// newRootCmd builds the root command.
-func newRootCmd() *cobra.Command {
-	root, _ := newRoot()
-	return root
 }
 
 // newRoot builds the root command and returns the app state behind it, which
@@ -76,7 +74,7 @@ below apply to every command.`,
 	root.SetGlobalNormalizationFunc(normalizeFlag)
 
 	pf := root.PersistentFlags()
-	pf.StringVarP(&a.configPath, "config", "c", defaultConfigPath(), "config file to use")
+	pf.StringVarP(&a.configPath, "config", "c", defaultConfigPath(), "config file to use (env TG_CONFIG)")
 	pf.StringVarP(&a.outputFormat, "output", "o", string(output.Text), "output format: text or json")
 	pf.StringVar(&a.proxyURL, "proxy", os.Getenv("TG_PROXY"),
 		"proxy URL: socks5:// or tg://proxy?... (overrides config)")
