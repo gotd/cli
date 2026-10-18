@@ -102,7 +102,7 @@ func newBotInfoResult(ref peerRef, u *tg.User, full *tg.UserFull) botInfoResult 
 
 // resolveBot resolves arg and checks that it is a bot.
 func resolveBot(ctx context.Context, m *peerManager, arg string) (peers.User, error) {
-	p, err := resolvePeerArg(ctx, m, arg)
+	p, err := resolveManagedPeer(ctx, m, arg)
 	if err != nil {
 		return peers.User{}, err
 	}

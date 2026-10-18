@@ -5,6 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/go-faster/errors"
+
+	"github.com/gotd/td/bin"
 	"github.com/gotd/td/telegram/message"
 	"github.com/gotd/td/telegram/peers"
 	"github.com/gotd/td/tg"
@@ -136,6 +139,37 @@ func TestBuilderForSelf(t *testing.T) {
 	for _, in := range selfAliases {
 		if _, err := builderFor(context.Background(), m, sender, in); err != nil {
 			t.Errorf("builderFor(%q): %v", in, err)
+		}
+	}
+}
+
+func TestResolveManagedPeerSelf(t *testing.T) {
+	// Regression: watch/wait/bot-info passed "me" to the username resolver,
+	// which failed with USERNAME_INVALID.
+	store, err := peercache.Open(filepath.Join(t.TempDir(), "peers.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	api := newFuncAPI(t, func(req bin.Encoder) (bin.Encoder, error) {
+		if _, ok := req.(*tg.UsersGetUsersRequest); !ok {
+			return nil, errors.Errorf("unexpected request %T", req)
+		}
+		return &tg.UserClassVector{Elems: []tg.UserClass{&tg.User{ID: 42, Self: true, AccessHash: 1}}}, nil
+	})
+	m := &peerManager{Manager: peers.Options{Storage: store}.Build(api), store: store}
+
+	for _, arg := range []string{"me", "self", ""} {
+		p, err := resolveManagedPeer(context.Background(), m, arg)
+		if err != nil || p.ID() != 42 {
+			t.Errorf("resolveManagedPeer(%q) = %v, %v; want self (42)", arg, p, err)
+		}
+	}
+	if _, err := resolveBot(context.Background(), m, "me"); err == nil {
+		t.Error("resolveBot(me) should fail: the account is not a bot")
+	} else {
+		var u usageError
+		if !errors.As(err, &u) {
+			t.Errorf("resolveBot(me) err = %v, want usage error", err)
 		}
 	}
 }
