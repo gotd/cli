@@ -49,12 +49,21 @@ func getMessage(ctx context.Context, api *tg.Client, peer tg.InputPeerClass, id 
 	if !ok {
 		return nil, errors.Errorf("unexpected messages type %T", res)
 	}
+	// messages.getMessages looks ids up across all private chats and basic
+	// groups, so check the message belongs to the requested chat. Channel
+	// lookups are already scoped; self (-1) is not checked.
+	want := inputPeerID(peer)
 	for _, m := range msgs.GetMessages() {
-		if msg, ok := m.(*tg.Message); ok && msg.ID == id {
-			return msg, nil
+		msg, ok := m.(*tg.Message)
+		if !ok || msg.ID != id {
+			continue
 		}
+		if _, channel := peer.(*tg.InputPeerChannel); !channel && want > 0 && peerIDOf(msg.PeerID) != want {
+			break
+		}
+		return msg, nil
 	}
-	return nil, errors.Errorf("message #%d not found", id)
+	return nil, notFoundf("message #%d not found in this chat", id)
 }
 
 // documentFilename returns the filename attribute of a document, or a fallback.
@@ -149,9 +158,9 @@ filename is used in the current directory.`,
 		Args:              cobra.ExactArgs(2),
 		ValidArgsFunction: peerArgCompletion,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			id, err := strconv.Atoi(args[1])
+			id, err := parseMessageID(args[1])
 			if err != nil {
-				return errors.Wrap(err, "message-id must be an integer")
+				return err
 			}
 
 			return a.run(cmd.Context(), runParams{auth: authUser}, func(ctx context.Context, api *tg.Client) error {

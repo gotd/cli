@@ -45,7 +45,15 @@ func normalizeFlag(_ *pflag.FlagSet, name string) pflag.NormalizedName {
 	return pflag.NormalizedName(name)
 }
 
+// newRootCmd builds the root command.
 func newRootCmd() *cobra.Command {
+	root, _ := newRoot()
+	return root
+}
+
+// newRoot builds the root command and returns the app state behind it, which
+// execute needs to report errors in the selected output format.
+func newRoot() (*cobra.Command, *app) {
 	a := newApp()
 
 	root := &cobra.Command{
@@ -82,6 +90,8 @@ below apply to every command.`,
 			}
 			return append(cfg.labels(), "all"), cobra.ShellCompDirectiveNoFileComp
 		})
+	pf.DurationVar(&a.timeout, "timeout", envDuration("TG_TIMEOUT"),
+		"abort the command after this long, exiting with code 6 (0 = no limit)")
 	pf.BoolVar(&a.debugInvoker, "debug-invoker", false, "use pretty-printing debug invoker")
 	_ = root.RegisterFlagCompletionFunc("output",
 		cobra.FixedCompletions(output.Formats(), cobra.ShellCompDirectiveNoFileComp))
@@ -123,6 +133,9 @@ below apply to every command.`,
 		a.newScheduleCmd(),
 		a.newPollCmd(),
 		a.newReadCmd(),
+		a.newClickCmd(),
+		a.newStartBotCmd(),
+		a.newBotInfoCmd(),
 		a.newUploadCmd(),
 		a.newAlbumCmd(),
 		a.newStickersCmd(),
@@ -160,7 +173,10 @@ below apply to every command.`,
 		a.newProfileCmd(),
 		a.newFoldersCmd(),
 	)
-	root.AddCommand(newDocsCmd(root))
+	root.AddCommand(newDocsCmd(root), newVersionCmd(a))
+	root.Version = buildVersion().String()
+	root.SetVersionTemplate("tg {{.Version}}\n")
+	markUsageErrors(root)
 
-	return root
+	return root, a
 }

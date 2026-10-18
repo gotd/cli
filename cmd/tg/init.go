@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/go-faster/errors"
 	"github.com/spf13/cobra"
@@ -12,6 +13,13 @@ import (
 // envInt returns the integer value of the environment variable, or 0.
 func envInt(key string) int {
 	v, _ := strconv.Atoi(os.Getenv(key))
+	return v
+}
+
+// envDuration returns the duration value of the environment variable, or 0
+// when it is unset or malformed.
+func envDuration(key string) time.Duration {
+	v, _ := time.ParseDuration(os.Getenv(key))
 	return v
 }
 

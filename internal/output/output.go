@@ -73,6 +73,28 @@ type envelope struct {
 	Data    any    `json:"data"`
 }
 
+// errorEnvelope is the JSON shape of a failed command: the same envelope with
+// "error" in place of "data", so a parser can tell the two apart by key.
+type errorEnvelope struct {
+	Schema  int    `json:"schema"`
+	Account string `json:"account,omitempty"`
+	Error   any    `json:"error"`
+}
+
+// EmitError writes a failure description in JSON mode. In text mode it writes
+// nothing: errors are reported on stderr by the caller.
+func (p *Printer) EmitError(v any) error {
+	if p.format != JSON {
+		return nil
+	}
+	enc := json.NewEncoder(p.w)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(errorEnvelope{Schema: schemaVersion, Account: p.account, Error: v}); err != nil {
+		return errors.Wrap(err, "encode json")
+	}
+	return nil
+}
+
 // Emit writes a single result value.
 func (p *Printer) Emit(v any) error {
 	if p.format == JSON {

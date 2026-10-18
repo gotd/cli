@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"strconv"
 
 	"github.com/go-faster/errors"
 	"github.com/spf13/cobra"
@@ -12,32 +11,42 @@ import (
 )
 
 func (a *app) newReplyCmd() *cobra.Command {
-	var msg messageOptions
+	var (
+		fromStdin bool
+		msg       messageOptions
+		wait      waitOptions
+	)
 
 	cmd := &cobra.Command{
-		Use:     "reply <peer> <message-id> <text>",
+		Use:     "reply <peer> <message-id> [text]",
 		Short:   "Reply to a specific message",
 		GroupID: groupMessaging,
 		Long: `Send a reply to a specific message in a peer's history. The peer is
-me/self, @username, phone, or a t.me link.`,
+me/self, @username, phone, or a t.me link. The text may come from --stdin.
+With --wait the peer's response is collected, as for ` + "`tg send`.",
 		Example: `  tg reply @durov 12345 "great post"
-  tg reply me 1000 "note to self"`,
-		Args:              cobra.ExactArgs(3),
+  tg reply me 1000 "note to self"
+  tg reply @mybot 4242 "Berlin" --wait 20s -o json`,
+		Args:              cobra.RangeArgs(2, 3),
 		ValidArgsFunction: peerArgCompletion,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			peer := args[0]
-			replyTo, err := strconv.Atoi(args[1])
+			replyTo, err := parseMessageID(args[1])
 			if err != nil {
-				return errors.Wrap(err, "message-id must be an integer")
+				return err
 			}
-			text := args[2]
+			text, err := messageText(args[2:], fromStdin, cmd.InOrStdin())
+			if err != nil {
+				return err
+			}
 
-			return a.run(cmd.Context(), runParams{auth: authUser}, func(ctx context.Context, api *tg.Client) error {
+			collector := newReplyCollector()
+			return a.run(cmd.Context(), wait.runParams(collector), func(ctx context.Context, api *tg.Client) error {
 				sender, m, err := a.sender(api)
 				if err != nil {
 					return err
 				}
-				bf, err := builderFor(ctx, m, sender, peer)
+				bf, err := targetFor(ctx, m, sender, peer, collector, wait)
 				if err != nil {
 					return err
 				}
@@ -47,12 +56,19 @@ me/self, @username, phone, or a t.me link.`,
 				if err != nil {
 					return errors.Wrap(err, "reply")
 				}
-				return a.printer.Emit(sentResult{Peer: peer, MessageID: id})
+				res := sentResult{Peer: peer, MessageID: id}
+				if res.conversation, err = awaitResponse(ctx, collector, wait); err != nil {
+					return err
+				}
+				return a.printer.Emit(res)
 			})
 		},
 	}
 
-	msg.register(cmd.Flags())
+	fs := cmd.Flags()
+	fs.BoolVar(&fromStdin, "stdin", false, "read the reply text from standard input")
+	msg.register(fs)
+	wait.register(fs)
 
 	return cmd
 }

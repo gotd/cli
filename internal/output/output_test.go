@@ -66,3 +66,22 @@ func TestPrinterTextUsesMarshaler(t *testing.T) {
 		t.Errorf("text = %q, want %q", got, "name=durov")
 	}
 }
+
+func TestPrinterEmitError(t *testing.T) {
+	var buf bytes.Buffer
+	if err := New(JSON, &buf).EmitError(map[string]string{"code": "auth"}); err != nil {
+		t.Fatal(err)
+	}
+	got := buf.String()
+	if !strings.Contains(got, `"schema": 1`) || !strings.Contains(got, `"error": {`) || strings.Contains(got, `"data"`) {
+		t.Errorf("unexpected error envelope: %s", got)
+	}
+
+	buf.Reset()
+	if err := New(Text, &buf).EmitError(map[string]string{"code": "auth"}); err != nil {
+		t.Fatal(err)
+	}
+	if buf.Len() != 0 {
+		t.Errorf("text mode should write nothing, got %q", buf.String())
+	}
+}
