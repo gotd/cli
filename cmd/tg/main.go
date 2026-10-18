@@ -32,7 +32,16 @@ func main() {
 // signalError is the cancellation cause recorded when a signal stops tg.
 type signalError struct{ sig os.Signal }
 
-func (e signalError) Error() string { return "interrupted by " + e.sig.String() }
+func (e signalError) Error() string {
+	switch e.sig {
+	case os.Interrupt:
+		return "interrupted by SIGINT"
+	case syscall.SIGTERM:
+		return "interrupted by SIGTERM"
+	default:
+		return "interrupted by " + e.sig.String()
+	}
+}
 
 // exitCode is 128 + the signal number, the shell convention (130 for SIGINT,
 // 143 for SIGTERM).
