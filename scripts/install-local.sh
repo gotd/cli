@@ -46,15 +46,24 @@ if [[ -z "$go_bin" ]]; then
 fi
 [[ -x "$go_bin" ]] || die "no Go toolchain found (set GO=/path/to/go)"
 
+# embedded_creds BINARY prints "<app id> <app hash>" from the -X flags recorded
+# in the binary's build info (empty when absent).
+embedded_creds() {
+	local ldflags id hash
+	ldflags="$("$go_bin" version -m "$1" | sed -n 's/^[[:space:]]*build[[:space:]]*-ldflags=//p')"
+	id="$(sed -n 's/.*-X main\.builtinAppID=\([^ "]*\).*/\1/p' <<<"$ldflags")"
+	hash="$(sed -n 's/.*-X main\.builtinAppHash=\([^ "]*\).*/\1/p' <<<"$ldflags")"
+	[[ -n "$id" && -n "$hash" ]] && echo "$id $hash"
+	return 0
+}
+
 # Resolve app credentials.
 app_id="${APP_ID:-}"
 app_hash="${APP_HASH:-}"
 if [[ -z "$app_id" || -z "$app_hash" ]]; then
 	src="${creds_from:-${bin_dir}/tg}"
 	[[ -e "$src" ]] || die "no APP_ID/APP_HASH and no binary to read credentials from (${src}); use --creds-from"
-	ldflags="$("$go_bin" version -m "$src" | sed -n 's/^[[:space:]]*build[[:space:]]*-ldflags=//p')"
-	app_id="$(sed -n 's/.*-X main\.builtinAppID=\([^ "]*\).*/\1/p' <<<"$ldflags")"
-	app_hash="$(sed -n 's/.*-X main\.builtinAppHash=\([^ "]*\).*/\1/p' <<<"$ldflags")"
+	read -r app_id app_hash < <(embedded_creds "$src") || true
 	[[ -n "$app_id" && -n "$app_hash" ]] || die "${src} has no embedded app credentials"
 	echo "install-local: embedding the app credentials of ${src}"
 fi
@@ -72,13 +81,18 @@ tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 
 echo "install-local: building ${version} (${commit}) with $("$go_bin" env GOVERSION)"
-CGO_ENABLED=0 "$go_bin" build -trimpath \
+# No -trimpath: Go records -ldflags in the build info only without it, and the
+# next rebuild reads the credentials back from there (--creds-from).
+CGO_ENABLED=0 "$go_bin" build \
 	-ldflags "-s -w -X main.builtinAppID=${app_id} -X main.builtinAppHash=${app_hash}" \
 	-o "$tmp/tg" ./cmd/tg
 
-# Smoke test: the binary runs and carries credentials.
+# Smoke test: the binary runs, carries the credentials, and records them so a
+# later rebuild can reuse them.
 "$tmp/tg" version -o json | grep -q '"builtin_credentials": true' ||
 	die "built binary does not report embedded credentials"
+[[ "$(embedded_creds "$tmp/tg")" == "${app_id} ${app_hash}" ]] ||
+	die "built binary does not record its credentials in its build info"
 
 mkdir -p "$dest" "$bin_dir"
 install -m 0755 "$tmp/tg" "$dest/tg"
