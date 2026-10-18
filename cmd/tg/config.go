@@ -130,19 +130,12 @@ func writeConfig(path string, cfg Config) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	// O_EXCL makes "refuse to overwrite" race-free.
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600) // #nosec G304 // path provided via flag
-	if errors.Is(err, os.ErrExist) {
-		return errors.Errorf("file %s exists", path)
-	}
-	if err != nil {
-		return errors.Wrap(err, "create")
-	}
-	if _, err := f.Write(data); err != nil {
-		_ = f.Close()
-		return errors.Wrap(err, "write")
-	}
-	if err := f.Close(); err != nil {
+	// Created atomically: a crash cannot leave a partial config behind that a
+	// retried `tg init` would then refuse to replace.
+	if err := atomicfile.Create(path, data, 0o600); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return errors.Errorf("file %s exists", path)
+		}
 		return errors.Wrap(err, "write")
 	}
 	return nil
