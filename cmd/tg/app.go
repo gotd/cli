@@ -188,7 +188,7 @@ const helpCmdName = "help"
 func skipConfig(cmd *cobra.Command) bool {
 	for c := cmd; c != nil; c = c.Parent() {
 		switch c.Name() {
-		case "init", docsCmdName, "completion", helpCmdName, versionCmdName,
+		case "init", docsCmdName, "completion", helpCmdName, versionCmdName, doctorCmdName,
 			cobra.ShellCompRequestCmd, cobra.ShellCompNoDescRequestCmd:
 			return true
 		}

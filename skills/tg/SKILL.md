@@ -22,6 +22,8 @@ default config is absent, not that tg is unconfigured.
 
 ```bash
 tg whoami -o json   # authenticated → {"schema":1,"data":{...}}; else errors
+tg doctor -o json   # when anything fails: checks config, credentials, session,
+                    # peer cache, connection and login, each with a fix hint
 ```
 
 If it errors with "no config … run `tg init` first" or a not-authorized error:

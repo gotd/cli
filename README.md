@@ -104,6 +104,8 @@ Run `tg --help` for the full, grouped command list, or `tg <command> --help` for
 - **Messaging:** `send`, `reply`, `edit`, `delete`, `delete-history`, `forward`,
   `history`, `search` (`--global`), `read`, `pin`/`unpin`/`unpin-all`/`pinned`,
   `react`/`unreact`/`reactions`, `draft`/`drafts`, `schedule`, `poll`, `link`, `context`.
+- **Diagnostics:** `doctor` checks config, credentials, session, peer cache, connection
+  and login, with a fix hint for each failure (`--offline` skips the network).
 - **Bots:** `click` (press inline/keyboard buttons), `start-bot` (deep-link start),
   `bot-info`, and `--wait` reply collection on `send`/`reply`/`click`/`start-bot`/`upload`.
 - **Media:** `upload` (with `--type` video/audio/voice/gif/sticker), `album`, `download`,

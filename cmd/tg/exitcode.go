@@ -72,6 +72,13 @@ func notFoundf(format string, args ...any) error {
 	return notFoundError{errors.Errorf(format, args...)}
 }
 
+// reportedError is returned by a command that already printed its result
+// (including what went wrong) and only needs a non-zero exit code; execute adds
+// nothing to the output.
+type reportedError struct{ exit int }
+
+func (e reportedError) Error() string { return "exit " + strconv.Itoa(e.exit) }
+
 // errWaitTimeout is returned when a command gave up waiting for an event.
 var errWaitTimeout = errors.New("timed out waiting")
 
