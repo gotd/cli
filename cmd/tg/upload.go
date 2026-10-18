@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -35,6 +36,7 @@ type uploadFlags struct {
 	docType  *enumValue
 	threads  int
 	msg      messageOptions
+	wait     waitOptions
 }
 
 // uploadedFile is one uploaded file in an uploadResult.
@@ -43,24 +45,26 @@ type uploadedFile struct {
 	MessageID int    `json:"message_id"`
 }
 
-// uploadResult is the result of `tg upload`.
+// uploadResult is the result of `tg upload`. With --wait it also carries the
+// peer's response.
 type uploadResult struct {
 	Files []uploadedFile `json:"files"`
+	*conversation
 }
 
-// MarshalText renders one uploaded file per line.
+// MarshalText renders one uploaded file per line, then any collected response.
 func (r uploadResult) MarshalText(w io.Writer) error {
 	for _, f := range r.Files {
 		if _, err := fmt.Fprintf(w, "uploaded %s as message #%d\n", f.Path, f.MessageID); err != nil {
 			return err
 		}
 	}
-	return nil
+	return r.marshalText(w)
 }
 
 // documentTypes are the allowed values of the --type flag.
 func documentTypes() []string {
-	return []string{"file", "video", "audio", "voice", "gif", "sticker"}
+	return []string{fileKindFile, fileKindVideo, fileKindAudio, fileKindVoice, "gif", fileKindSticker}
 }
 
 func detectMIME(f io.ReadSeeker) (*mimetype.MIME, error) {
@@ -91,18 +95,18 @@ func prepareFile(
 
 	if v := uf.docType.value; v != "" {
 		switch v {
-		case "file":
+		case fileKindFile:
 			return file.ForceFile(true).MIME(mime)
-		case "video":
+		case fileKindVideo:
 			return file.Video()
-		case "audio":
+		case fileKindAudio:
 			return file.Audio()
-		case "voice":
+		case fileKindVoice:
 			return file.Voice()
 		case "gif":
 			return file.MIME(message.DefaultGifMIME).
 				Attributes(&tg.DocumentAttributeAnimated{})
-		case "sticker":
+		case fileKindSticker:
 			return file.UploadedSticker()
 		default:
 			panic("unreachable: unknown type" + v)
@@ -224,6 +228,20 @@ func (a *app) uploadOne(
 	return msgID, nil
 }
 
+// walkFiles calls fn for each regular file under root, or for root itself when
+// it is a file.
+func walkFiles(root string, fn func(path string, info fs.FileInfo) error) error {
+	return filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err // info is nil here
+		}
+		if info.IsDir() {
+			return nil
+		}
+		return fn(path, info)
+	})
+}
+
 func (a *app) newUploadCmd() *cobra.Command {
 	uf := &uploadFlags{docType: newEnumValue("", documentTypes()...)}
 
@@ -235,7 +253,8 @@ func (a *app) newUploadCmd() *cobra.Command {
 		Long: `Upload a file to a peer. If <path> is a directory, every file under it is
 uploaded. With no --peer, files go to your own Saved Messages.
 
-The document type is detected from the file's MIME type unless --type is set.`,
+The document type is detected from the file's MIME type unless --type is set.
+With --wait the peer's response to the upload is collected, as for ` + "`tg send`.",
 		Example: `  # Upload a file to Saved Messages
   tg upload ./report.pdf
 
@@ -243,12 +262,20 @@ The document type is detected from the file's MIME type unless --type is set.`,
   tg upload --peer @me --type video clip.mp4
 
   # Upload with a caption
-  tg upload --peer @durov --message "here you go" photo.jpg`,
+  tg upload --peer @durov --message "here you go" photo.jpg
+
+  # Test a bot's media handling: send a file and collect its replies
+  tg upload --peer @mybot ./invoice.pdf --wait 30s -o json`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			arg := args[0]
+			// Fail before connecting when there is nothing to upload.
+			if _, err := os.Stat(arg); err != nil {
+				return errors.Wrap(err, "upload")
+			}
 
-			return a.run(cmd.Context(), runParams{auth: authUser}, func(ctx context.Context, api *tg.Client) error {
+			collector := newReplyCollector()
+			return a.run(cmd.Context(), uf.wait.runParams(collector), func(ctx context.Context, api *tg.Client) error {
 				upld := uploader.NewUploader(api).
 					WithThreads(uf.threads).
 					WithPartSize(uploader.MaximumPartSize)
@@ -258,18 +285,14 @@ The document type is detected from the file's MIME type unless --type is set.`,
 				}
 				sender = sender.WithUploader(upld)
 
-				builder, err := builderFor(ctx, m, sender, uf.peer)
+				builder, err := targetFor(ctx, m, sender, uf.peer, collector, uf.wait)
 				if err != nil {
 					return err
 				}
 				quiet := a.printer.Format() == output.JSON
 
 				var result uploadResult
-				if err := filepath.Walk(arg, func(path string, info fs.FileInfo, err error) error {
-					// Stop if got error, skip if current file is directory.
-					if info.IsDir() || err != nil {
-						return err
-					}
+				if err := walkFiles(arg, func(path string, info fs.FileInfo) error {
 					id, err := a.uploadOne(ctx, uf, upld, builder, path, info, quiet)
 					if err != nil {
 						return err
@@ -277,6 +300,16 @@ The document type is detected from the file's MIME type unless --type is set.`,
 					result.Files = append(result.Files, uploadedFile{Path: path, MessageID: id})
 					return nil
 				}); err != nil {
+					return err
+				}
+				ids := make([]int, 0, len(result.Files))
+				for _, f := range result.Files {
+					ids = append(ids, f.MessageID)
+				}
+				if len(ids) > 0 {
+					collector.setAction(slices.Min(ids), ids...)
+				}
+				if result.conversation, err = awaitResponse(ctx, collector, uf.wait); err != nil {
 					return err
 				}
 				return a.printer.Emit(result)
@@ -293,6 +326,7 @@ The document type is detected from the file's MIME type unless --type is set.`,
 	flags.Var(uf.docType, "type", "type of uploaded document (default: detect from MIME)")
 	flags.IntVarP(&uf.threads, "threads", "j", 1, "concurrency limit")
 	uf.msg.register(flags)
+	uf.wait.register(flags)
 
 	registerPeerCompletion(cmd, "peer")
 	registerEnumCompletion(cmd, "type", documentTypes())

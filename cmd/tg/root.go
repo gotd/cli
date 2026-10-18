@@ -20,7 +20,11 @@ const (
 // cmdList is the common "list" subcommand verb.
 const cmdList = "list"
 
+// defaultConfigPath is $TG_CONFIG, or gotd/gotd.cli.yaml in the user config dir.
 func defaultConfigPath() string {
+	if p := os.Getenv("TG_CONFIG"); p != "" {
+		return p
+	}
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		return ""
@@ -45,7 +49,9 @@ func normalizeFlag(_ *pflag.FlagSet, name string) pflag.NormalizedName {
 	return pflag.NormalizedName(name)
 }
 
-func newRootCmd() *cobra.Command {
+// newRoot builds the root command and returns the app state behind it, which
+// execute needs to report errors in the selected output format.
+func newRoot() (*cobra.Command, *app) {
 	a := newApp()
 
 	root := &cobra.Command{
@@ -68,7 +74,7 @@ below apply to every command.`,
 	root.SetGlobalNormalizationFunc(normalizeFlag)
 
 	pf := root.PersistentFlags()
-	pf.StringVarP(&a.configPath, "config", "c", defaultConfigPath(), "config file to use")
+	pf.StringVarP(&a.configPath, "config", "c", defaultConfigPath(), "config file to use (env TG_CONFIG)")
 	pf.StringVarP(&a.outputFormat, "output", "o", string(output.Text), "output format: text or json")
 	pf.StringVar(&a.proxyURL, "proxy", os.Getenv("TG_PROXY"),
 		"proxy URL: socks5:// or tg://proxy?... (overrides config)")
@@ -82,6 +88,8 @@ below apply to every command.`,
 			}
 			return append(cfg.labels(), "all"), cobra.ShellCompDirectiveNoFileComp
 		})
+	pf.DurationVar(&a.timeout, "timeout", envDuration("TG_TIMEOUT"),
+		"abort the command after this long, exiting with code 6 (0 = no limit)")
 	pf.BoolVar(&a.debugInvoker, "debug-invoker", false, "use pretty-printing debug invoker")
 	_ = root.RegisterFlagCompletionFunc("output",
 		cobra.FixedCompletions(output.Formats(), cobra.ShellCompDirectiveNoFileComp))
@@ -123,6 +131,9 @@ below apply to every command.`,
 		a.newScheduleCmd(),
 		a.newPollCmd(),
 		a.newReadCmd(),
+		a.newClickCmd(),
+		a.newStartBotCmd(),
+		a.newBotInfoCmd(),
 		a.newUploadCmd(),
 		a.newAlbumCmd(),
 		a.newStickersCmd(),
@@ -160,7 +171,13 @@ below apply to every command.`,
 		a.newProfileCmd(),
 		a.newFoldersCmd(),
 	)
-	root.AddCommand(newDocsCmd(root))
+	root.AddCommand(newDocsCmd(root), newVersionCmd(a))
+	// Never set a custom cobra template (SetVersionTemplate, SetUsageTemplate,
+	// ...): it links text/template, whose reflective method calls disable the
+	// linker's dead-method elimination for gotd's huge generated API and more
+	// than double the binary size. Cobra's defaults are template-free.
+	root.Version = buildVersion().String()
+	markUsageErrors(root)
 
-	return root
+	return root, a
 }

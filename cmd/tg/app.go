@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"time"
 
 	"github.com/go-faster/errors"
 	"github.com/spf13/cobra"
@@ -58,6 +59,10 @@ type app struct {
 	outputFormat string
 	proxyURL     string
 	accountFlag  string
+	timeout      time.Duration
+
+	// cancelTimeout releases the --timeout context; see before and close.
+	cancelTimeout context.CancelFunc
 
 	cfg     Config
 	log     *zap.Logger
@@ -79,10 +84,23 @@ func newApp() *app {
 		panic(err)
 	}
 
+	// Surface rate limiting: without this a flood wait looks like a hang.
+	waiter := floodwait.NewWaiter().WithCallback(func(_ context.Context, w floodwait.FloodWait) {
+		defaultLog.Warn("Rate limited by Telegram (FLOOD_WAIT); retrying after the wait",
+			zap.Duration("wait", w.Duration))
+	})
+
 	return &app{
-		waiter:  floodwait.NewWaiter(),
+		waiter:  waiter,
 		log:     defaultLog,
 		printer: output.New(output.Text, nil),
+	}
+}
+
+// close releases resources held across the command run.
+func (a *app) close() {
+	if a.cancelTimeout != nil {
+		a.cancelTimeout()
 	}
 }
 
@@ -95,6 +113,12 @@ func (a *app) before(cmd *cobra.Command) error {
 		return err
 	}
 	a.printer = output.New(format, cmd.OutOrStdout())
+
+	if a.timeout > 0 {
+		ctx, cancel := context.WithTimeout(cmd.Context(), a.timeout)
+		cmd.SetContext(ctx)
+		a.cancelTimeout = cancel
+	}
 
 	if skipConfig(cmd) {
 		return nil
@@ -157,11 +181,14 @@ func (a *app) ensureActive() error {
 	return a.activate(labels[0], false)
 }
 
+// helpCmdName is cobra's built-in help command.
+const helpCmdName = "help"
+
 // skipConfig reports whether the command runs without a loaded config/session.
 func skipConfig(cmd *cobra.Command) bool {
 	for c := cmd; c != nil; c = c.Parent() {
 		switch c.Name() {
-		case "init", "docs", "completion", "help",
+		case "init", docsCmdName, "completion", helpCmdName, versionCmdName,
 			cobra.ShellCompRequestCmd, cobra.ShellCompNoDescRequestCmd:
 			return true
 		}
@@ -173,6 +200,10 @@ func skipConfig(cmd *cobra.Command) bool {
 type runParams struct {
 	auth    authKind
 	updates bool
+	// register attaches update handlers to the dispatcher (updates only). It
+	// runs before the client connects: the dispatcher's handler map is not
+	// safe to modify while updates are being dispatched.
+	register func(d tg.UpdateDispatcher)
 	// authorize performs interactive authentication when the session is not yet
 	// authorized. If nil, user sessions error with errNotAuthorized and bot
 	// sessions authenticate with the configured token.
@@ -217,6 +248,9 @@ func (a *app) connectWith(
 	var d tg.UpdateDispatcher
 	if rp.updates {
 		d = tg.NewUpdateDispatcher()
+		if rp.register != nil {
+			rp.register(d)
+		}
 	}
 
 	appID, appHash, err := effectiveCreds(st.acc)

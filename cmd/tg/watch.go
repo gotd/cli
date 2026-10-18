@@ -25,11 +25,21 @@ type watchEvent struct {
 }
 
 // messageStream turns incoming new-message updates into watchEvents, filtered by
-// an optional peer id, delivered to onEvent. Safe for concurrent dispatch.
+// an optional peer id, delivered to onEvent. It is registered before the client
+// connects and drops events until armed. Safe for concurrent dispatch.
 type messageStream struct {
-	filterID int64
-	onEvent  func(watchEvent)
+	onEvent func(watchEvent)
+
 	mu       sync.Mutex
+	armed    bool
+	filterID int64 // 0 = all peers
+}
+
+// arm starts delivering events, limited to filterID when non-zero.
+func (s *messageStream) arm(filterID int64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.armed, s.filterID = true, filterID
 }
 
 func (s *messageStream) handle(msg tg.MessageClass, e tg.Entities) {
@@ -39,11 +49,11 @@ func (s *messageStream) handle(msg tg.MessageClass, e tg.Entities) {
 	}
 	ent := peer.EntitiesFromUpdate(e)
 	ev := watchEvent{Peer: describePeer(m.PeerID, ent), Message: buildMessageItem(m, ent)}
-	if s.filterID != 0 && ev.Peer.ID != s.filterID {
-		return
-	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if !s.armed || (s.filterID != 0 && ev.Peer.ID != s.filterID) {
+		return
+	}
 	s.onEvent(ev)
 }
 
@@ -69,7 +79,7 @@ func (a *app) resolveFilterFor(ctx context.Context, api *tg.Client, st *accountS
 	if err != nil {
 		return 0, err
 	}
-	p, err := m.Resolve(ctx, args[0])
+	p, err := resolveManagedPeer(ctx, m, args[0])
 	if err != nil {
 		return 0, errors.Wrapf(err, "resolve %q", args[0])
 	}
@@ -105,11 +115,12 @@ func emitLine(format output.Format, account string, ev watchEvent) {
 
 func (a *app) newWatchCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:               "watch [peer]",
-		Short:             "Stream new messages as they arrive",
-		GroupID:           groupMessaging,
-		Long:              "Stream incoming messages (optionally for one peer) as JSON lines until interrupted.",
-		Example:           "  tg watch\n  tg watch @durov --output json",
+		Use:     "watch [peer]",
+		Short:   "Stream new messages as they arrive",
+		GroupID: groupMessaging,
+		Long: `Stream incoming messages (optionally for one peer) as JSON lines until
+interrupted. With the global --timeout the stream ends normally after that long.`,
+		Example:           "  tg watch\n  tg watch @durov --output json\n  tg watch @mybot -o json --timeout 2m",
 		Args:              cobra.MaximumNArgs(1),
 		ValidArgsFunction: peerArgCompletion,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -160,8 +171,17 @@ func (a *app) watchAll(ctx context.Context, labels, args []string) error {
 // serializes stdout across concurrent accounts.
 func (a *app) watchWith(ctx context.Context, st *accountState, header string, args []string, mu *sync.Mutex) error {
 	format := a.printer.Format()
-	return a.connectWith(ctx, st, runParams{auth: authUser, updates: true},
-		func(ctx context.Context, client *telegram.Client, d tg.UpdateDispatcher) error {
+	stream := &messageStream{
+		onEvent: func(ev watchEvent) {
+			if mu != nil {
+				mu.Lock()
+				defer mu.Unlock()
+			}
+			emitLine(format, header, ev)
+		},
+	}
+	err := a.connectWith(ctx, st, runParams{auth: authUser, updates: true, register: stream.register},
+		func(ctx context.Context, client *telegram.Client, _ tg.UpdateDispatcher) error {
 			if err := requireAuth(ctx, client); err != nil {
 				return err
 			}
@@ -169,23 +189,17 @@ func (a *app) watchWith(ctx context.Context, st *accountState, header string, ar
 			if err != nil {
 				return err
 			}
-
-			stream := &messageStream{
-				filterID: filterID,
-				onEvent: func(ev watchEvent) {
-					if mu != nil {
-						mu.Lock()
-						defer mu.Unlock()
-					}
-					emitLine(format, header, ev)
-				},
-			}
-			stream.register(d)
+			stream.arm(filterID)
 
 			_, _ = fmt.Fprintf(os.Stderr, "Watching %s for new messages (Ctrl-C to stop)…\n", st.label)
 			<-ctx.Done()
 			return nil
 		})
+	// A watch bounded by --timeout ends normally at the deadline.
+	if errors.Is(err, context.DeadlineExceeded) {
+		return nil
+	}
+	return err
 }
 
 // requireAuth returns errNotAuthorized if the session is not logged in.

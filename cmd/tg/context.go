@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"sort"
-	"strconv"
 
 	"github.com/go-faster/errors"
 	"github.com/spf13/cobra"
@@ -46,9 +45,9 @@ func (a *app) newContextCmd() *cobra.Command {
 		Args:              cobra.ExactArgs(2),
 		ValidArgsFunction: peerArgCompletion,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			id, err := strconv.Atoi(args[1])
+			id, err := parseMessageID(args[1])
 			if err != nil {
-				return errors.Wrap(err, "message-id must be an integer")
+				return err
 			}
 			return a.run(cmd.Context(), runParams{auth: authUser}, func(ctx context.Context, api *tg.Client) error {
 				m, err := a.manager(api)

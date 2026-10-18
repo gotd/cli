@@ -84,9 +84,9 @@ func (a *app) reactCmd(use, short string, remove bool) *cobra.Command {
 		Args:              cobra.ExactArgs(minArgs),
 		ValidArgsFunction: peerArgCompletion,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			id, err := strconv.Atoi(args[1])
+			id, err := parseMessageID(args[1])
 			if err != nil {
-				return errors.Wrap(err, "message-id must be an integer")
+				return err
 			}
 			emoji := ""
 			if !remove {
@@ -128,9 +128,9 @@ func (a *app) newReactionsCmd() *cobra.Command {
 		Args:              cobra.ExactArgs(2),
 		ValidArgsFunction: peerArgCompletion,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			id, err := strconv.Atoi(args[1])
+			id, err := parseMessageID(args[1])
 			if err != nil {
-				return errors.Wrap(err, "message-id must be an integer")
+				return err
 			}
 			return a.run(cmd.Context(), runParams{auth: authUser}, func(ctx context.Context, api *tg.Client) error {
 				m, err := a.manager(api)

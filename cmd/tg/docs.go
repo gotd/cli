@@ -10,6 +10,9 @@ import (
 
 // newDocsCmd generates documentation for the whole command tree. It is hidden
 // because it is a maintenance/release tool, not an end-user command.
+// docsCmdName is the docs command, which skipConfig exempts from loading a config.
+const docsCmdName = "docs"
+
 func newDocsCmd(root *cobra.Command) *cobra.Command {
 	var (
 		dir    string
@@ -17,7 +20,7 @@ func newDocsCmd(root *cobra.Command) *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "docs",
+		Use:   docsCmdName,
 		Short: "Generate command-tree documentation (Markdown or man pages)",
 		Long: `Generate reference documentation for every command from the command tree,
 so the published docs always match the code.`,

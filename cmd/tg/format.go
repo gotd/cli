@@ -5,6 +5,7 @@ import (
 	"io"
 	"strconv"
 	"strings"
+	"unicode/utf16"
 
 	"github.com/go-faster/errors"
 
@@ -173,7 +174,151 @@ func buildMessageItem(msg *tg.Message, ent peer.Entities) messageItem {
 			item.ReplyTo = h.ReplyToMsgID
 		}
 	}
+	item.EditDate, _ = msg.GetEditDate()
+	item.ViaBotID, _ = msg.GetViaBotID()
+	item.GroupedID, _ = msg.GetGroupedID()
+	if media, ok := msg.GetMedia(); ok {
+		item.File = newFileInfo(media)
+	}
+	if ents, ok := msg.GetEntities(); ok {
+		item.Entities = newEntityItems(msg.Message, ents)
+	}
+	if rm, ok := msg.GetReplyMarkup(); ok {
+		item.ReplyMarkup = newReplyMarkup(rm)
+	}
 	return item
+}
+
+// File kinds reported in fileInfo.Kind. The upload --type values share the
+// names of the document kinds.
+const (
+	fileKindFile      = "file"
+	fileKindPhoto     = "photo"
+	fileKindVideo     = "video"
+	fileKindVideoNote = "video_note"
+	fileKindAudio     = "audio"
+	fileKindVoice     = "voice"
+	fileKindAnimation = "animation"
+	fileKindSticker   = "sticker"
+)
+
+// fileInfo describes a message's document or photo.
+type fileInfo struct {
+	// Kind refines a document: "file", "video", "video_note", "audio",
+	// "voice", "animation" or "sticker"; photos are "photo".
+	Kind     string  `json:"kind"`
+	Name     string  `json:"name,omitempty"`
+	MIME     string  `json:"mime,omitempty"`
+	Size     int64   `json:"size,omitempty"`
+	Duration float64 `json:"duration,omitempty"` // seconds
+	Width    int     `json:"width,omitempty"`
+	Height   int     `json:"height,omitempty"`
+}
+
+// newFileInfo describes document and photo media; nil for other media.
+func newFileInfo(m tg.MessageMediaClass) *fileInfo {
+	switch v := m.(type) {
+	case *tg.MessageMediaDocument:
+		doc, ok := v.Document.AsNotEmpty()
+		if !ok {
+			return nil
+		}
+		return documentInfo(doc)
+	case *tg.MessageMediaPhoto:
+		ph, ok := v.Photo.AsNotEmpty()
+		if !ok {
+			return nil
+		}
+		info := &fileInfo{Kind: fileKindPhoto, MIME: "image/jpeg"}
+		for _, s := range ph.Sizes {
+			if size, ok := s.(*tg.PhotoSize); ok && size.W*size.H >= info.Width*info.Height {
+				info.Width, info.Height, info.Size = size.W, size.H, int64(size.Size)
+			}
+			if size, ok := s.(*tg.PhotoSizeProgressive); ok && size.W*size.H >= info.Width*info.Height {
+				info.Width, info.Height = size.W, size.H
+				if n := len(size.Sizes); n > 0 {
+					info.Size = int64(size.Sizes[n-1])
+				}
+			}
+		}
+		return info
+	default:
+		return nil
+	}
+}
+
+// documentInfo classifies a document by its attributes.
+func documentInfo(doc *tg.Document) *fileInfo {
+	info := &fileInfo{Kind: fileKindFile, MIME: doc.MimeType, Size: doc.Size}
+	for _, attr := range doc.Attributes {
+		switch a := attr.(type) {
+		case *tg.DocumentAttributeFilename:
+			info.Name = a.FileName
+		case *tg.DocumentAttributeVideo:
+			info.Kind = fileKindVideo
+			if a.RoundMessage {
+				info.Kind = fileKindVideoNote
+			}
+			info.Duration, info.Width, info.Height = a.Duration, a.W, a.H
+		case *tg.DocumentAttributeAudio:
+			info.Kind = fileKindAudio
+			if a.Voice {
+				info.Kind = fileKindVoice
+			}
+			info.Duration = float64(a.Duration)
+		case *tg.DocumentAttributeImageSize:
+			info.Width, info.Height = a.W, a.H
+		}
+	}
+	// Animated and sticker attributes override video/image classification.
+	for _, attr := range doc.Attributes {
+		switch attr.(type) {
+		case *tg.DocumentAttributeAnimated:
+			info.Kind = fileKindAnimation
+		case *tg.DocumentAttributeSticker:
+			info.Kind = fileKindSticker
+		}
+	}
+	return info
+}
+
+// entityItem is one formatting entity of a message text. Offset and Length
+// count UTF-16 code units, as Telegram does; Text is the covered substring.
+type entityItem struct {
+	Type     string `json:"type"`
+	Offset   int    `json:"offset"`
+	Length   int    `json:"length"`
+	Text     string `json:"text,omitempty"`
+	URL      string `json:"url,omitempty"`
+	UserID   int64  `json:"user_id,omitempty"`
+	Language string `json:"language,omitempty"`
+}
+
+// newEntityItems converts message entities, e.g. messageEntityTextUrl ->
+// {"type":"text_url","url":...}.
+func newEntityItems(text string, ents []tg.MessageEntityClass) []entityItem {
+	units := utf16.Encode([]rune(text))
+	out := make([]entityItem, 0, len(ents))
+	for _, e := range ents {
+		item := entityItem{
+			Type:   snakeCase(strings.TrimPrefix(e.TypeName(), "messageEntity")),
+			Offset: e.GetOffset(),
+			Length: e.GetLength(),
+		}
+		if start, end := item.Offset, item.Offset+item.Length; start >= 0 && start <= end && end <= len(units) {
+			item.Text = string(utf16.Decode(units[start:end]))
+		}
+		switch v := e.(type) {
+		case *tg.MessageEntityTextURL:
+			item.URL = v.URL
+		case *tg.MessageEntityMentionName:
+			item.UserID = v.UserID
+		case *tg.MessageEntityPre:
+			item.Language = v.Language
+		}
+		out = append(out, item)
+	}
+	return out
 }
 
 // mediaType returns a short lowercase name for a message media, e.g. "photo".

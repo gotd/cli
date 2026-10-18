@@ -25,7 +25,7 @@ func TestListHistory(t *testing.T) {
 		return nil, errors.Errorf("unexpected request %T", req)
 	})
 
-	res, err := listHistory(context.Background(), api, &tg.InputPeerSelf{}, 30)
+	res, err := listHistory(context.Background(), api, &tg.InputPeerSelf{}, 30, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -56,7 +56,7 @@ func TestListHistoryLimit(t *testing.T) {
 		return nil, errors.Errorf("unexpected request %T", req)
 	})
 
-	res, err := listHistory(context.Background(), api, &tg.InputPeerSelf{}, 2)
+	res, err := listHistory(context.Background(), api, &tg.InputPeerSelf{}, 2, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,7 +94,7 @@ func TestListHistoryBatchSize(t *testing.T) {
 			}, nil
 		})
 
-		if _, err := listHistory(context.Background(), api, &tg.InputPeerSelf{}, tt.limit); err != nil {
+		if _, err := listHistory(context.Background(), api, &tg.InputPeerSelf{}, tt.limit, 0); err != nil {
 			t.Fatalf("limit %d: %v", tt.limit, err)
 		}
 		if gotBatch != tt.wantBatch {

@@ -40,7 +40,13 @@ gofmt -l .                           # list misformatted files; gofmt -w to fix
 go mod tidy                          # CI fails if this produces a diff
 ```
 
-Go 1.25. Releases are cut by pushing a `v*` tag, which triggers GoReleaser
+Go 1.25. On the maintainer's workstation Go is not on PATH: use
+`export PATH="$HOME/.local/opt/go-1.27.2/bin:$PATH"` and
+`~/.local/opt/golangci-lint-2.12.1/golangci-lint`. `scripts/install-local.sh` builds and installs
+`~/.local/bin/tg` with embedded app credentials (see its header). The first build of `gotd/td`
+takes a long time on this laptop; later builds are cached.
+
+Releases are cut by pushing a `v*` tag, which triggers GoReleaser
 (`.github/workflows/release.yml`); the release build embeds app credentials via `-ldflags` and
 fails if the `APP_ID`/`APP_HASH` secrets are missing.
 
@@ -52,7 +58,7 @@ Commits must follow Conventional Commits (`feat(...)`, `ci:`, `fix:`, …) — e
 The whole CLI lives in `cmd/tg/` (package `main`). Supporting packages are under `internal/`.
 
 **Command pattern.** Each command is a `func (a *app) newXxxCmd() *cobra.Command` method
-(spf13/cobra) registered in `root.go`'s `newRootCmd`. Commands carry a `GroupID`
+(spf13/cobra) registered in `root.go`'s `newRoot`. Commands carry a `GroupID`
 (`groupAuth`/`groupMessaging`/`groupChats`/`groupProfile`). Parent-with-subcommands is done via
 `cmd.AddCommand(...)` (see `devices`, `chats`, `invite-link`).
 
@@ -88,6 +94,38 @@ A `<peer>` argument accepts `me`/`self`, `@username`, a phone number, a `t.me/�
 `id:<n>` (a raw numeric id from `tg chats list --output json`, resolved from the cache — works
 only after the peer has been cached). For sending, `builderFor(sender, peer)` turns a peer
 string into a `message.RequestBuilder` (the sender's resolver also understands `id:`).
+
+**Errors and exit codes** (`exitcode.go`). `main` calls `execute`, which maps the returned
+error to an exit code and, with `-o json`, also writes `{"schema":1,"error":{...}}` to stdout.
+Classification is by type, not text: return `usageError{err}` for bad invocations,
+`notFoundf(...)` for a missing peer/message/button, wrap `errWaitTimeout` when giving up waiting,
+and let Telegram RPC errors (`tgerr`) and context errors propagate wrapped. Use
+`parseMessageID` for `<message-id>` arguments. Exit codes are part of the contract.
+
+**Bot-testing primitives.** `conversation.go`: a `replyCollector` registered via
+`runParams.register` (handlers must be attached before the client connects — the dispatcher map
+is not safe for concurrent registration) collects a peer's replies and edits; commands opt in with
+`waitOptions` (`--wait/--settle/--replies`), `targetFor` (arms the collector before sending) and
+`awaitResponse`. `markup.go` models reply markup and button selection; `click.go` presses buttons;
+`bot.go` has `bot-info` and `start-bot`.
+
+**JSON compatibility.** Downstream scripts parse `history`/`send` output. Only add fields, always
+with `omitempty` (see `TestMessageItemJSONCompat`); never rename or remove one.
+
+**Binary size.** Never call cobra's `Set*Template` or otherwise link `text/template` (or
+`reflect.Value.Method`/`MethodByName`): reflective method lookup makes the linker keep every
+exported method of `gotd/td`'s generated API, growing the binary from ~19 MB to ~45 MB. Check with
+`go build -ldflags=-dumpdep ./cmd/tg 2>&1 | grep ReflectMethod` (should print nothing).
+
+**Files shared between processes** (sessions, peer cache, config) are written through
+`internal/atomicfile`, so concurrent `tg` invocations never read a torn file, and
+read-modify-write cycles hold an `internal/filelock` lock on a sidecar `<file>.lock` so they
+cannot lose each other's updates. The file session store also refuses to write a stale auth key
+over a session another process re-keyed or removed (see `fileSessionStore`).
+
+**Reply attribution.** `--wait` results distinguish `replies` (observed after the action),
+`linked` (tied to it by Telegram: `reply_to` / edit of the pressed message) and `earlier`
+(ordered before it). Call `collector.setAction(...)` once the action's RPC returns.
 
 **Testing convention.** Keep network code thin and factor the logic into pure functions that
 are unit-tested directly (e.g. `inviteLinkFromFull`, `newDevicesResult`). For code that must

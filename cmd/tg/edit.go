@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"strconv"
 
 	"github.com/go-faster/errors"
 	"github.com/spf13/cobra"
@@ -14,23 +13,30 @@ import (
 )
 
 func (a *app) newEditCmd() *cobra.Command {
-	var useHTML bool
+	var (
+		useHTML   bool
+		fromStdin bool
+	)
 
 	cmd := &cobra.Command{
-		Use:     "edit <peer> <message-id> <text>",
+		Use:     "edit <peer> <message-id> [text]",
 		Short:   "Edit a message",
 		GroupID: groupMessaging,
-		Long:    "Edit the text of a message you sent. The peer is me/self, @username, phone, or a t.me link.",
+		Long: `Edit the text of a message you sent. The peer is me/self, @username, phone,
+or a t.me link. The new text may come from --stdin.`,
 		Example: `  tg edit @durov 12345 "updated text"
   tg edit me 1000 --html "<b>bold</b>"`,
-		Args:              cobra.ExactArgs(3),
+		Args:              cobra.RangeArgs(2, 3),
 		ValidArgsFunction: peerArgCompletion,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			id, err := strconv.Atoi(args[1])
+			id, err := parseMessageID(args[1])
 			if err != nil {
-				return errors.Wrap(err, "message-id must be an integer")
+				return err
 			}
-			text := args[2]
+			text, err := messageText(args[2:], fromStdin, cmd.InOrStdin())
+			if err != nil {
+				return err
+			}
 
 			return a.run(cmd.Context(), runParams{auth: authUser}, func(ctx context.Context, api *tg.Client) error {
 				sender, m, err := a.sender(api)
@@ -56,6 +62,7 @@ func (a *app) newEditCmd() *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&useHTML, "html", false, "use HTML styling")
+	cmd.Flags().BoolVar(&fromStdin, "stdin", false, "read the new text from standard input")
 
 	return cmd
 }
