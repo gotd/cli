@@ -156,6 +156,10 @@ what is proven from what is observed:
 - `earlier`: messages the bot sent before your action (ids are ordered per chat),
   such as a late answer to a previous command. Never a response to this action.
 
+`replies` is always present (possibly `[]`); `edits`, `linked`, `earlier` and `timed_out`
+are omitted when empty or false, like every optional field in tg's JSON, so read them
+with a default (`jq '.data.linked // []'`).
+
 Message JSON includes `reply_markup` (inline buttons or reply keyboard, with each
 button's `type`, `text`, callback `data`, `url`), `entities` (formatting and links,
 with the covered `text`), `file` (`kind`, `name`, `mime`, `size`, `duration`,

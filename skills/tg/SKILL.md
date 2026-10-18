@@ -152,6 +152,9 @@ Result shapes (`.data`):
   message or an edit of the pressed message), `earlier` (bot messages sent
   before your action, e.g. a late answer to the previous step: not responses)
   and `timed_out` (true when `--wait` ran out before the bot settled).
+  `replies` is always a list; `edits`, `linked`, `earlier` and `timed_out`
+  are omitted when empty or false, so read them with a default
+  (`jq '.data.linked // []'`, Python `.get("linked") or []`).
 - `click`: `button` (`type`, `text`, `data`, `url`), `row`, `col`, `answer`
   (`answered`, `message`, `alert`, `url`: the toast/alert; `answered: false`
   means the bot did not answer the callback in time), plus `replies`/`edits`.
