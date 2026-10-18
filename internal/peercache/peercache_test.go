@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 
 	"github.com/gotd/td/telegram/peers"
@@ -154,5 +155,47 @@ func TestCorruptCacheIsRebuilt(t *testing.T) {
 	}
 	if v, found, _ := s2.Find(ctx, key); !found || v.AccessHash != 55 {
 		t.Errorf("Find after rebuild = %+v, %v", v, found)
+	}
+}
+
+func TestOverlappingWritersKeepAllEntries(t *testing.T) {
+	// Each Storage stands in for a separate tg process sharing the cache file:
+	// separate instances share no in-memory lock, only the file.
+	const writers, saves = 8, 25
+	path := filepath.Join(t.TempDir(), "peers.json")
+	ctx := context.Background()
+
+	var wg sync.WaitGroup
+	for w := range writers {
+		s, err := Open(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range saves {
+				id := int64(w*saves + i + 1)
+				if err := s.Save(ctx, peers.Key{Prefix: prefixUsers, ID: id}, peers.Value{AccessHash: id}); err != nil {
+					t.Error(err)
+					return
+				}
+			}
+		}()
+	}
+	wg.Wait()
+
+	final, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	missing := 0
+	for id := int64(1); id <= writers*saves; id++ {
+		if _, found, _ := final.Find(ctx, peers.Key{Prefix: prefixUsers, ID: id}); !found {
+			missing++
+		}
+	}
+	if missing > 0 {
+		t.Errorf("%d of %d entries lost by overlapping writers", missing, writers*saves)
 	}
 }
