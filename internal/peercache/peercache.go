@@ -129,6 +129,13 @@ func (s *Storage) flush() (rerr error) {
 	return nil
 }
 
+// Len reports the number of cached peers.
+func (s *Storage) Len() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.data.Peers)
+}
+
 // Save implements peers.Storage.
 func (s *Storage) Save(_ context.Context, key peers.Key, value peers.Value) error {
 	s.mu.Lock()

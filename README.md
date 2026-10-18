@@ -104,6 +104,8 @@ Run `tg --help` for the full, grouped command list, or `tg <command> --help` for
 - **Messaging:** `send`, `reply`, `edit`, `delete`, `delete-history`, `forward`,
   `history`, `search` (`--global`), `read`, `pin`/`unpin`/`unpin-all`/`pinned`,
   `react`/`unreact`/`reactions`, `draft`/`drafts`, `schedule`, `poll`, `link`, `context`.
+- **Diagnostics:** `doctor` checks config, credentials, session, peer cache, connection
+  and login, with a fix hint for each failure (`--offline` skips the network).
 - **Bots:** `click` (press inline/keyboard buttons), `start-bot` (deep-link start),
   `bot-info`, and `--wait` reply collection on `send`/`reply`/`click`/`start-bot`/`upload`.
 - **Media:** `upload` (with `--type` video/audio/voice/gif/sticker), `album`, `download`,
@@ -153,6 +155,10 @@ what is proven from what is observed:
   edit of the pressed message). Deterministic.
 - `earlier`: messages the bot sent before your action (ids are ordered per chat),
   such as a late answer to a previous command. Never a response to this action.
+
+`replies` is always present (possibly `[]`); `edits`, `linked`, `earlier` and `timed_out`
+are omitted when empty or false, like every optional field in tg's JSON, so read them
+with a default (`jq '.data.linked // []'`).
 
 Message JSON includes `reply_markup` (inline buttons or reply keyboard, with each
 button's `type`, `text`, callback `data`, `url`), `entities` (formatting and links,

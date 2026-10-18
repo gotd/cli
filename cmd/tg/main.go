@@ -74,6 +74,10 @@ func execute(ctx context.Context, args []string, stdout, stderr io.Writer) int {
 	if err == nil {
 		return exitOK
 	}
+	var reported reportedError
+	if errors.As(err, &reported) {
+		return reported.exit
+	}
 
 	info := classifyError(err)
 	if errors.As(err, &sig) {
