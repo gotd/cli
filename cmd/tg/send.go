@@ -91,6 +91,7 @@ replies (and edits) it collected: it stops when the peer has been quiet for
 					return errors.Wrap(err, "send")
 				}
 				res := sentResult{Peer: peer, MessageID: id}
+				collector.setAction(id, id)
 				if res.conversation, err = awaitResponse(ctx, collector, wait); err != nil {
 					return err
 				}

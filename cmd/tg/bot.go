@@ -244,6 +244,7 @@ With --wait the bot's replies (and message edits) are collected and printed.`,
 				}
 
 				res := sentResult{Peer: botArg, MessageID: id}
+				collector.setAction(id, id)
 				if res.conversation, err = awaitResponse(ctx, collector, wait); err != nil {
 					return err
 				}

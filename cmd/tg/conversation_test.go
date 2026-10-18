@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -173,4 +175,62 @@ func TestPeerIDOf(t *testing.T) {
 			t.Errorf("peerIDOf(%T) = %d, want %d", p, got, want)
 		}
 	}
+}
+
+func botReply(id, replyTo int, text string) *tg.Message {
+	m := botMessage(id, text)
+	m.SetReplyTo(&tg.MessageReplyHeader{ReplyToMsgID: replyTo})
+	return m
+}
+
+func TestCollectorAttribution(t *testing.T) {
+	h := newCollectorHarness(t)
+	h.c.arm(testBotID)
+
+	// Our message got id 10. The bot's late answer to an earlier command (9)
+	// and its unrelated broadcast (12) arrive while we wait.
+	h.newMessage(botMessage(9, "late answer to /help"))
+	h.newMessage(botReply(11, 10, "answer to our message"))
+	h.newMessage(botMessage(12, "daily broadcast"))
+	h.editMessage(botMessage(5, "keyboard edited")) // the pressed message
+	h.c.setAction(10, 10, 5)
+
+	conv := h.c.snapshot(false)
+	if got := ids(conv.Replies); got != "11,12" {
+		t.Errorf("replies = %s, want 11,12 (after the action)", got)
+	}
+	if got := ids(conv.Earlier); got != "9" {
+		t.Errorf("earlier = %s, want 9", got)
+	}
+	if len(conv.Linked) != 2 || conv.Linked[0] != 5 || conv.Linked[1] != 11 {
+		t.Errorf("linked = %v, want [5 11]: the reply_to and the edited keyboard", conv.Linked)
+	}
+}
+
+func TestCollectReplyCountIgnoresEarlier(t *testing.T) {
+	h := newCollectorHarness(t)
+	h.c.arm(testBotID)
+	h.newMessage(botMessage(9, "late answer")) // arrived before collect started
+	h.c.setAction(10, 10)
+	go func() {
+		time.Sleep(50 * time.Millisecond)
+		h.newMessage(botMessage(11, "the response"))
+	}()
+
+	// --replies 1 must not be satisfied by the earlier message.
+	conv, err := h.c.collect(context.Background(), waitOptions{wait: 5 * time.Second, settle: time.Second, replies: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if conv.TimedOut || ids(conv.Replies) != "11" || ids(conv.Earlier) != "9" {
+		t.Errorf("conv = %+v", conv)
+	}
+}
+
+func ids(msgs []messageItem) string {
+	out := make([]string, 0, len(msgs))
+	for _, m := range msgs {
+		out = append(out, strconv.Itoa(m.ID))
+	}
+	return strings.Join(out, ",")
 }

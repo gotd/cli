@@ -242,6 +242,9 @@ edit the message whose button was pressed).`,
 					return err
 				}
 				res.Peer = args[0]
+				// A callback press creates no message; a reply-keyboard press
+				// sends one. Responses may reply to it or edit the keyboard.
+				collector.setAction(res.SentMessageID, res.SentMessageID, msg.ID)
 				if res.conversation, err = awaitResponse(ctx, collector, wait); err != nil {
 					return err
 				}

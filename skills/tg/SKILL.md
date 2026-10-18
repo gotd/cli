@@ -55,7 +55,7 @@ login needs the user. `tg init` is safe to run yourself.
   network stall never hangs the session.
 - **Branch on exit codes**, not error text: 0 ok, 2 usage, 3 auth (the user must
   `tg login`), 4 not found (peer/message/button), 5 flood wait, 6 timeout,
-  7 other Telegram error. With `-o json` a failure also prints
+  7 other Telegram error, 130/143 interrupted (SIGINT/SIGTERM). With `-o json` a failure also prints
   `{"schema":1,"error":{"code":…,"exit":…,"message":…,"retry_after":…}}` on stdout.
 
 ## Common recipes
@@ -144,9 +144,12 @@ tg history @mybot --after 4242 -o json
 Result shapes (`.data`):
 
 - `send`/`reply`/`start-bot`: `message_id`; `upload`: `files[]`. With `--wait`
-  also `replies` (new bot messages, in their latest version), `edits` (other
-  messages the bot edited, e.g. the one whose button you pressed) and
-  `timed_out` (true when `--wait` ran out before the bot settled).
+  also `replies` (bot messages ordered after your action, in their latest
+  version), `edits` (other messages the bot edited, e.g. the one whose button
+  you pressed), `linked` (ids Telegram ties to your action: a `reply_to` your
+  message or an edit of the pressed message), `earlier` (bot messages sent
+  before your action, e.g. a late answer to the previous step: not responses)
+  and `timed_out` (true when `--wait` ran out before the bot settled).
 - `click`: `button` (`type`, `text`, `data`, `url`), `row`, `col`, `answer`
   (`answered`, `message`, `alert`, `url`: the toast/alert; `answered: false`
   means the bot did not answer the callback in time), plus `replies`/`edits`.
@@ -157,7 +160,12 @@ Result shapes (`.data`):
 
 What to assert: reply text and formatting, the buttons offered, callback
 answers, which message was edited, media kind/size — and that nothing arrives
-when nothing should (`timed_out: true` with empty `replies`). Set `--wait` a
+when nothing should (`timed_out: true` with empty `replies`). Treat `linked` as
+proof a message answers your action; anything else in `replies` is what the bot
+did right after it, which is the response unless the bot also sends unprompted
+messages. Drive one conversation per bot at a time: two parallel flows with the
+same bot from one account cannot be told apart. A non-empty `earlier` means the
+bot is still answering a previous step: slow it down. Set `--wait` a
 little above the bot's worst-case latency; use `--replies N` when the count is
 known. Bots and Telegram rate-limit: pace bursts, don't loop the same command,
 and prefer one `--wait` call over polling `history`. On exit code 5, wait

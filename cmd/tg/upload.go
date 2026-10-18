@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -300,6 +301,13 @@ With --wait the peer's response to the upload is collected, as for ` + "`tg send
 					return nil
 				}); err != nil {
 					return err
+				}
+				ids := make([]int, 0, len(result.Files))
+				for _, f := range result.Files {
+					ids = append(ids, f.MessageID)
+				}
+				if len(ids) > 0 {
+					collector.setAction(slices.Min(ids), ids...)
 				}
 				if result.conversation, err = awaitResponse(ctx, collector, uf.wait); err != nil {
 					return err

@@ -4,6 +4,8 @@ import (
 	"context"
 	"io"
 	"sort"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -66,11 +68,26 @@ func awaitResponse(ctx context.Context, c *replyCollector, o waitOptions) (*conv
 	return conv, nil
 }
 
-// conversation is what a peer did in response to an action: messages it sent
-// and messages it edited (in their latest version), oldest first.
+// conversation is what the peer did while tg waited after an action, oldest
+// first, with messages in their latest version.
+//
+// Telegram does not say which action a bot message answers, so attribution is
+// split by what can be proven:
+//   - Replies are the peer's messages ordered after the action's own message:
+//     observed activity, very likely the response, but a bot that also sends
+//     unprompted messages (or a second conversation with the same bot from this
+//     account) can add messages here too.
+//   - Linked lists the ids Telegram itself ties to the action: replies that
+//     reply_to the sent message and edits of the message whose button was
+//     pressed. Those are deterministic.
+//   - Earlier holds messages the peer sent before the action's message (ids are
+//     ordered per chat), e.g. a late answer to a previous command: never a
+//     response to this action.
 type conversation struct {
 	Replies []messageItem `json:"replies"`
 	Edits   []messageItem `json:"edits,omitempty"`
+	Linked  []int         `json:"linked,omitempty"`
+	Earlier []messageItem `json:"earlier,omitempty"`
 	// TimedOut is set when --wait elapsed before the peer settled (or, with
 	// --replies, before enough replies arrived).
 	TimedOut bool `json:"timed_out,omitempty"`
@@ -92,6 +109,23 @@ func (c *conversation) marshalText(w io.Writer) error {
 			return err
 		}
 	}
+	if len(c.Linked) > 0 {
+		ids := make([]string, 0, len(c.Linked))
+		for _, id := range c.Linked {
+			ids = append(ids, "#"+strconv.Itoa(id))
+		}
+		if _, err := io.WriteString(w, "linked to the action: "+strings.Join(ids, ", ")+"\n"); err != nil {
+			return err
+		}
+	}
+	if len(c.Earlier) > 0 {
+		if _, err := io.WriteString(w, "sent before the action (not responses):\n"); err != nil {
+			return err
+		}
+		if err := (historyResult{Messages: c.Earlier}).MarshalText(w); err != nil {
+			return err
+		}
+	}
 	if c.TimedOut {
 		_, err := io.WriteString(w, "(timed out waiting for the peer)\n")
 		return err
@@ -108,6 +142,11 @@ type replyCollector struct {
 	peerID  int64 // 0 until armed
 	replies []messageItem
 	edits   []messageItem
+	// after is the action's own message id: the peer's messages with lower
+	// ids were sent before it (0 = no such message, e.g. a callback press).
+	after int
+	// links are the message ids a response can reply to or edit.
+	links map[int]bool
 	// activity is signaled (non-blocking) on every relevant event.
 	activity chan event
 }
@@ -128,7 +167,7 @@ func newReplyCollector() *replyCollector {
 // sequential connections (e.g. --account all).
 func (c *replyCollector) register(d tg.UpdateDispatcher) {
 	c.mu.Lock()
-	c.peerID, c.replies, c.edits = 0, nil, nil
+	c.peerID, c.replies, c.edits, c.after, c.links = 0, nil, nil, 0, nil
 	c.mu.Unlock()
 
 	d.OnNewMessage(func(_ context.Context, e tg.Entities, u *tg.UpdateNewMessage) error {
@@ -159,6 +198,21 @@ func (c *replyCollector) arm(peerID int64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.peerID = peerID
+}
+
+// setAction records the action the collected messages respond to, once its
+// RPC returned: after is the action's own message id (0 if it created none) and
+// links are the messages a response may reference or edit.
+func (c *replyCollector) setAction(after int, links ...int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.after = after
+	c.links = make(map[int]bool, len(links))
+	for _, id := range links {
+		if id != 0 {
+			c.links[id] = true
+		}
+	}
 }
 
 func (c *replyCollector) onMessage(msg tg.MessageClass, e tg.Entities, edited bool) {
@@ -218,23 +272,45 @@ func upsertMessage(msgs []messageItem, item messageItem) bool {
 	return false
 }
 
+// counts returns how many replies (sent after the action) and edits were
+// collected so far.
 func (c *replyCollector) counts() (replies, edits int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return len(c.replies), len(c.edits)
+	for _, m := range c.replies {
+		if m.ID > c.after {
+			replies++
+		}
+	}
+	return replies, len(c.edits)
 }
 
 func (c *replyCollector) snapshot(timedOut bool) *conversation {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	conv := &conversation{
-		Replies:  append([]messageItem{}, c.replies...),
-		Edits:    append([]messageItem(nil), c.edits...),
-		TimedOut: timedOut,
+	conv := &conversation{Replies: []messageItem{}, TimedOut: timedOut}
+	for _, m := range c.replies {
+		if m.ID > c.after {
+			conv.Replies = append(conv.Replies, m)
+		} else {
+			conv.Earlier = append(conv.Earlier, m)
+		}
 	}
-	for _, msgs := range [][]messageItem{conv.Replies, conv.Edits} {
+	conv.Edits = append(conv.Edits, c.edits...)
+	for _, msgs := range [][]messageItem{conv.Replies, conv.Edits, conv.Earlier} {
 		sort.Slice(msgs, func(i, j int) bool { return msgs[i].ID < msgs[j].ID })
 	}
+	for _, m := range conv.Replies {
+		if c.links[m.ReplyTo] {
+			conv.Linked = append(conv.Linked, m.ID)
+		}
+	}
+	for _, m := range conv.Edits {
+		if c.links[m.ID] || c.links[m.ReplyTo] {
+			conv.Linked = append(conv.Linked, m.ID)
+		}
+	}
+	sort.Ints(conv.Linked)
 	return conv
 }
 

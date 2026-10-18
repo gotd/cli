@@ -118,7 +118,14 @@ exported method of `gotd/td`'s generated API, growing the binary from ~19 MB to 
 `go build -ldflags=-dumpdep ./cmd/tg 2>&1 | grep ReflectMethod` (should print nothing).
 
 **Files shared between processes** (sessions, peer cache, config) are written through
-`internal/atomicfile` so concurrent `tg` invocations never read a torn file.
+`internal/atomicfile`, so concurrent `tg` invocations never read a torn file, and
+read-modify-write cycles hold an `internal/filelock` lock on a sidecar `<file>.lock` so they
+cannot lose each other's updates. The file session store also refuses to write a stale auth key
+over a session another process re-keyed or removed (see `fileSessionStore`).
+
+**Reply attribution.** `--wait` results distinguish `replies` (observed after the action),
+`linked` (tied to it by Telegram: `reply_to` / edit of the pressed message) and `earlier`
+(ordered before it). Call `collector.setAction(...)` once the action's RPC returns.
 
 **Testing convention.** Keep network code thin and factor the logic into pure functions that
 are unit-tested directly (e.g. `inviteLinkFromFull`, `newDevicesResult`). For code that must

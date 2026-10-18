@@ -12,8 +12,8 @@ Built on [`gotd/td`](https://github.com/gotd/td).
 > needs to test Telegram bots end to end: pressing inline and keyboard buttons,
 > collecting a bot's replies and edits in one call, deep-link starts, bot
 > introspection, richer message JSON (buttons, entities, file details), stable
-> exit codes with JSON errors, a global `--timeout`, and crash-safe session
-> storage shared by concurrent commands. See [Testing bots](#testing-bots).
+> exit codes with JSON errors, a global `--timeout`, and session and cache files
+> that concurrent `tg` processes share safely. See [Testing bots](#testing-bots).
 
 ## Installation
 
@@ -137,12 +137,22 @@ $ tg history @mybot --after 4242 -o json              # everything newer than a 
 ```
 
 `--wait <dur>` (on `send`, `reply`, `click`, `start-bot`, `upload`) subscribes to
-updates *before* acting, so a fast reply is never missed, and returns the bot's
-new messages (`replies`, in their latest version: bots that stream by editing are
-handled) and the other messages it edited (`edits`, e.g. the message whose button
-was pressed). It stops when the bot has been quiet for `--settle` (default 2s,
-extended while the bot shows "typing…"), when `--replies N` messages arrived, or
-when `--wait` elapses (`timed_out: true`).
+updates *before* acting, so a fast reply is never missed. It stops when the bot has
+been quiet for `--settle` (default 2s, extended while the bot shows "typing…"),
+when `--replies N` messages arrived, or when `--wait` elapses (`timed_out: true`).
+
+Telegram does not record which message a bot is answering, so the result separates
+what is proven from what is observed:
+
+- `replies`: the bot's messages ordered after your action, in their latest version
+  (bots that stream by editing are handled). Very likely the response, but a bot
+  that also sends unprompted messages, or a second conversation with the same bot
+  from this account, can add messages here.
+- `edits`: other messages the bot edited, e.g. the one whose button was pressed.
+- `linked`: ids Telegram itself ties to your action (a `reply_to` your message, an
+  edit of the pressed message). Deterministic.
+- `earlier`: messages the bot sent before your action (ids are ordered per chat),
+  such as a late answer to a previous command. Never a response to this action.
 
 Message JSON includes `reply_markup` (inline buttons or reply keyboard, with each
 button's `type`, `text`, callback `data`, `url`), `entities` (formatting and links,
@@ -162,7 +172,7 @@ existing consumers see the same shape.
 | 5 | flood wait: rate limited beyond the retry budget |
 | 6 | timeout: `--timeout`, or `wait --timeout` |
 | 7 | other Telegram API error |
-| 130 | interrupted |
+| 130, 143 | interrupted by SIGINT / SIGTERM (128 + signal) |
 
 Errors are printed to stderr as `tg: <message>`. With `--output json` a failure
 also writes an envelope to stdout, so a parser always gets JSON:

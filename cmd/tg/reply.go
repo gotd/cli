@@ -57,6 +57,7 @@ With --wait the peer's response is collected, as for ` + "`tg send`.",
 					return errors.Wrap(err, "reply")
 				}
 				res := sentResult{Peer: peer, MessageID: id}
+				collector.setAction(id, id)
 				if res.conversation, err = awaitResponse(ctx, collector, wait); err != nil {
 					return err
 				}
