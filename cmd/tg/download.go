@@ -50,20 +50,41 @@ func getMessage(ctx context.Context, api *tg.Client, peer tg.InputPeerClass, id 
 		return nil, errors.Errorf("unexpected messages type %T", res)
 	}
 	// messages.getMessages looks ids up across all private chats and basic
-	// groups, so check the message belongs to the requested chat. Channel
-	// lookups are already scoped; self (-1) is not checked.
-	want := inputPeerID(peer)
+	// groups, so check the message belongs to the requested chat.
 	for _, m := range msgs.GetMessages() {
 		msg, ok := m.(*tg.Message)
 		if !ok || msg.ID != id {
 			continue
 		}
-		if _, channel := peer.(*tg.InputPeerChannel); !channel && want > 0 && peerIDOf(msg.PeerID) != want {
+		if !inChat(peer, msg, msgs.GetUsers()) {
 			break
 		}
 		return msg, nil
 	}
 	return nil, errors.Errorf("message #%d not found in this chat", id)
+}
+
+// inChat reports whether msg belongs to the chat peer addresses. Channel
+// lookups are scoped by the server. Saved Messages ("me") is the private chat
+// whose user the response marks as the current user.
+func inChat(peer tg.InputPeerClass, msg *tg.Message, users []tg.UserClass) bool {
+	switch peer.(type) {
+	case *tg.InputPeerChannel:
+		return true
+	case *tg.InputPeerSelf:
+		pu, ok := msg.PeerID.(*tg.PeerUser)
+		if !ok {
+			return false
+		}
+		for _, u := range users {
+			if user, ok := u.(*tg.User); ok && user.ID == pu.UserID {
+				return user.Self
+			}
+		}
+		return false
+	}
+	want := inputPeerID(peer)
+	return want <= 0 || peerIDOf(msg.PeerID) == want
 }
 
 // peerIDOf returns the bare id of a peer.
