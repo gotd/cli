@@ -173,6 +173,10 @@ func skipConfig(cmd *cobra.Command) bool {
 type runParams struct {
 	auth    authKind
 	updates bool
+	// register attaches update handlers to the dispatcher (updates only). It
+	// runs before the client connects: the dispatcher's handler map is not
+	// safe to modify while updates are being dispatched.
+	register func(d tg.UpdateDispatcher)
 	// authorize performs interactive authentication when the session is not yet
 	// authorized. If nil, user sessions error with errNotAuthorized and bot
 	// sessions authenticate with the configured token.
@@ -217,6 +221,9 @@ func (a *app) connectWith(
 	var d tg.UpdateDispatcher
 	if rp.updates {
 		d = tg.NewUpdateDispatcher()
+		if rp.register != nil {
+			rp.register(d)
+		}
 	}
 
 	appID, appHash, err := effectiveCreds(st.acc)
