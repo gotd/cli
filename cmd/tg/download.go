@@ -49,12 +49,35 @@ func getMessage(ctx context.Context, api *tg.Client, peer tg.InputPeerClass, id 
 	if !ok {
 		return nil, errors.Errorf("unexpected messages type %T", res)
 	}
+	// messages.getMessages looks ids up across all private chats and basic
+	// groups, so check the message belongs to the requested chat. Channel
+	// lookups are already scoped; self (-1) is not checked.
+	want := inputPeerID(peer)
 	for _, m := range msgs.GetMessages() {
-		if msg, ok := m.(*tg.Message); ok && msg.ID == id {
-			return msg, nil
+		msg, ok := m.(*tg.Message)
+		if !ok || msg.ID != id {
+			continue
 		}
+		if _, channel := peer.(*tg.InputPeerChannel); !channel && want > 0 && peerIDOf(msg.PeerID) != want {
+			break
+		}
+		return msg, nil
 	}
-	return nil, errors.Errorf("message #%d not found", id)
+	return nil, errors.Errorf("message #%d not found in this chat", id)
+}
+
+// peerIDOf returns the bare id of a peer.
+func peerIDOf(p tg.PeerClass) int64 {
+	switch v := p.(type) {
+	case *tg.PeerUser:
+		return v.UserID
+	case *tg.PeerChat:
+		return v.ChatID
+	case *tg.PeerChannel:
+		return v.ChannelID
+	default:
+		return 0
+	}
 }
 
 // documentFilename returns the filename attribute of a document, or a fallback.
