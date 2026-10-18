@@ -1,6 +1,7 @@
 package atomicfile
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -88,5 +89,28 @@ func TestWriteFileMissingDir(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "missing", "file")
 	if err := WriteFile(path, []byte("x"), 0o600); err == nil {
 		t.Fatal("expected an error for a missing directory")
+	}
+}
+
+func TestCreate(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+
+	if err := Create(path, []byte("first"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	err := Create(path, []byte("second"), 0o600)
+	if !errors.Is(err, os.ErrExist) {
+		t.Fatalf("second Create err = %v, want os.ErrExist", err)
+	}
+	if got, _ := os.ReadFile(path); string(got) != "first" {
+		t.Errorf("contents = %q, want the first write kept", got)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 {
+		t.Errorf("leftover files: %v", entries)
 	}
 }
