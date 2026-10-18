@@ -112,6 +112,11 @@ is not safe for concurrent registration) collects a peer's replies and edits; co
 **JSON compatibility.** Downstream scripts parse `history`/`send` output. Only add fields, always
 with `omitempty` (see `TestMessageItemJSONCompat`); never rename or remove one.
 
+**Binary size.** Never call cobra's `Set*Template` or otherwise link `text/template` (or
+`reflect.Value.Method`/`MethodByName`): reflective method lookup makes the linker keep every
+exported method of `gotd/td`'s generated API, growing the binary from ~19 MB to ~45 MB. Check with
+`go build -ldflags=-dumpdep ./cmd/tg 2>&1 | grep ReflectMethod` (should print nothing).
+
 **Files shared between processes** (sessions, peer cache, config) are written through
 `internal/atomicfile` so concurrent `tg` invocations never read a torn file.
 

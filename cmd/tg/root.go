@@ -172,8 +172,11 @@ below apply to every command.`,
 		a.newFoldersCmd(),
 	)
 	root.AddCommand(newDocsCmd(root), newVersionCmd(a))
+	// Never set a custom cobra template (SetVersionTemplate, SetUsageTemplate,
+	// ...): it links text/template, whose reflective method calls disable the
+	// linker's dead-method elimination for gotd's huge generated API and more
+	// than double the binary size. Cobra's defaults are template-free.
 	root.Version = buildVersion().String()
-	root.SetVersionTemplate("tg {{.Version}}\n")
 	markUsageErrors(root)
 
 	return root, a
