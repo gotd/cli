@@ -240,3 +240,24 @@ func TestListHistoryAfter(t *testing.T) {
 		t.Errorf("messages = %+v, want #11 and #12", res.Messages)
 	}
 }
+
+func TestGetMessageSavedMessagesIsolation(t *testing.T) {
+	// Regression: for "me" the chat check was skipped, so the id of a message
+	// in any private chat returned that message as if it were in Saved Messages.
+	users := []tg.UserClass{&tg.User{ID: 42, Self: true}, &tg.User{ID: 999}}
+	respond := func(peerID int64) *tg.Client {
+		return newFuncAPI(t, func(bin.Encoder) (bin.Encoder, error) {
+			return &tg.MessagesMessages{
+				Messages: []tg.MessageClass{&tg.Message{ID: 5, PeerID: &tg.PeerUser{UserID: peerID}}},
+				Users:    users,
+			}, nil
+		})
+	}
+	ctx := context.Background()
+	if _, err := getMessage(ctx, respond(999), &tg.InputPeerSelf{}, 5); err == nil {
+		t.Error("a message from another private chat must not be returned for me")
+	}
+	if msg, err := getMessage(ctx, respond(42), &tg.InputPeerSelf{}, 5); err != nil || msg.ID != 5 {
+		t.Errorf("saved message: %v, %v", msg, err)
+	}
+}
