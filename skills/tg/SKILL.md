@@ -141,6 +141,8 @@ printf '%s' "$CODE" | tg send --peer @mybot --stdin --wait 20s -o json
 
 # Replies to a message sent earlier, without waiting again
 tg history @mybot --after 4242 -o json
+tg webapp @mybot --out session.json -o json            # open its Mini App as this account: Telegram signs real launch data
+tg webapp @mybot --text "Open store" --out session.json  # or a web app button; --url, --main and --start-param too
 ```
 
 Result shapes (`.data`):
@@ -155,6 +157,7 @@ Result shapes (`.data`):
   `replies` is always a list; `edits`, `linked`, `earlier` and `timed_out`
   are omitted when empty or false, so read them with a default
   (`jq '.data.linked // []'`, Python `.get("linked") or []`).
+- `webapp`: launch data is a credential for that Mini App, so keep it in the owner-only `--out` file. Use `init_data` as `Authorization: tma <init_data>` for the app's API, or load `url` from the file in a browser. Fields: `url` (the page), `source`, `signed`, `user_id`, `auth_date`, `query_id`, `out_file`. `signed_url` and `init_data` appear only with `--reveal`.
 - `click`: `button` (`type`, `text`, `data`, `url`), `row`, `col`, `answer`
   (`answered`, `message`, `alert`, `url`: the toast/alert; `answered: false`
   means the bot did not answer the callback in time), plus `replies`/`edits`.
