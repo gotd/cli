@@ -10,6 +10,8 @@ import (
 
 	"github.com/go-faster/errors"
 	"gopkg.in/yaml.v3"
+
+	"github.com/gotd/cli/internal/atomicfile"
 )
 
 // defaultAccount is the label of the top-level (legacy) account.
@@ -108,39 +110,47 @@ func loadConfig(path string) (Config, error) {
 	return cfg, nil
 }
 
-// writeConfig writes cfg to path, refusing to overwrite an existing file.
-func writeConfig(path string, cfg Config) error {
+// encodeConfig renders cfg as YAML.
+func encodeConfig(cfg Config) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	e := yaml.NewEncoder(buf)
 	e.SetIndent(2)
 	if err := e.Encode(cfg); err != nil {
-		return errors.Wrap(err, "encode")
+		return nil, errors.Wrap(err, "encode")
 	}
+	return buf.Bytes(), nil
+}
 
-	if _, err := os.Stat(path); err == nil {
-		return errors.Errorf("file %s exists", path)
+// writeConfig writes cfg to path, refusing to overwrite an existing file.
+func writeConfig(path string, cfg Config) error {
+	data, err := encodeConfig(cfg)
+	if err != nil {
+		return err
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	if err := os.WriteFile(path, buf.Bytes(), 0o600); err != nil {
+	// Created atomically: a crash cannot leave a partial config behind that a
+	// retried `tg init` would then refuse to replace.
+	if err := atomicfile.Create(path, data, 0o600); err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return errors.Errorf("file %s exists", path)
+		}
 		return errors.Wrap(err, "write")
 	}
 	return nil
 }
 
-// saveConfig writes cfg to path, overwriting any existing file.
+// saveConfig atomically writes cfg to path, overwriting any existing file.
 func saveConfig(path string, cfg Config) error {
-	buf := new(bytes.Buffer)
-	e := yaml.NewEncoder(buf)
-	e.SetIndent(2)
-	if err := e.Encode(cfg); err != nil {
-		return errors.Wrap(err, "encode")
+	data, err := encodeConfig(cfg)
+	if err != nil {
+		return err
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	if err := os.WriteFile(path, buf.Bytes(), 0o600); err != nil {
+	if err := atomicfile.WriteFile(path, data, 0o600); err != nil {
 		return errors.Wrap(err, "write")
 	}
 	return nil
