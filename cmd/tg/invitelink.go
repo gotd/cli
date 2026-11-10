@@ -49,7 +49,14 @@ func currentInviteLink(ctx context.Context, api *tg.Client, p peers.Peer) (strin
 // inviteLinkFromFull extracts the primary invite link from a full-chat
 // response, returning the empty string when none has been generated yet.
 func inviteLinkFromFull(full *tg.MessagesChatFull) (string, error) {
-	inv, ok := full.FullChat.GetExportedInvite()
+	// Not every ChatFullClass carries an invite (e.g. CommunityFull).
+	withInvite, ok := full.FullChat.(interface {
+		GetExportedInvite() (tg.ExportedChatInviteClass, bool)
+	})
+	if !ok {
+		return "", nil
+	}
+	inv, ok := withInvite.GetExportedInvite()
 	if !ok {
 		return "", nil
 	}
