@@ -21,7 +21,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7.0.0
         with:
-          go-version: "1.25"
+          go-version: stable
           # setup-go caches the module and build caches by default (keyed on
           # go.sum), so the manual cache + set-output steps are no longer needed.
 
