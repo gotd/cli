@@ -3,7 +3,7 @@ module github.com/gotd/cli
 go 1.25.0
 
 require (
-	github.com/gabriel-vasile/mimetype v1.4.15
+	github.com/gabriel-vasile/mimetype v1.4.16
 	github.com/go-faster/errors v0.8.0
 	github.com/gotd/contrib v0.24.0
 	github.com/gotd/log/logzap v0.1.1
