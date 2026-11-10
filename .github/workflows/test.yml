@@ -18,7 +18,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v7.0.0
         with:
-          go-version: "1.25"
+          go-version: stable
           # setup-go provides module/build caching out of the box.
 
       - name: Test
