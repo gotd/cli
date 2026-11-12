@@ -24,8 +24,17 @@ func (a *app) newWaitCmd() *cobra.Command {
 		Args:              cobra.MaximumNArgs(1),
 		ValidArgsFunction: peerArgCompletion,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return a.connect(cmd.Context(), runParams{auth: authUser, updates: true},
-				func(ctx context.Context, client *telegram.Client, d tg.UpdateDispatcher) error {
+			events := make(chan watchEvent, 1)
+			stream := &messageStream{
+				onEvent: func(ev watchEvent) {
+					select {
+					case events <- ev:
+					default:
+					}
+				},
+			}
+			return a.connect(cmd.Context(), runParams{auth: authUser, updates: true, register: stream.register},
+				func(ctx context.Context, client *telegram.Client, _ tg.UpdateDispatcher) error {
 					if err := requireAuth(ctx, client); err != nil {
 						return err
 					}
@@ -33,18 +42,7 @@ func (a *app) newWaitCmd() *cobra.Command {
 					if err != nil {
 						return err
 					}
-
-					events := make(chan watchEvent, 1)
-					stream := &messageStream{
-						filterID: filterID,
-						onEvent: func(ev watchEvent) {
-							select {
-							case events <- ev:
-							default:
-							}
-						},
-					}
-					stream.register(d)
+					stream.arm(filterID)
 
 					var timer <-chan time.Time
 					if timeout > 0 {
