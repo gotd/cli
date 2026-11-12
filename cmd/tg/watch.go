@@ -69,7 +69,7 @@ func (a *app) resolveFilterFor(ctx context.Context, api *tg.Client, st *accountS
 	if err != nil {
 		return 0, err
 	}
-	p, err := m.Resolve(ctx, args[0])
+	p, err := resolveManagedPeer(ctx, m, args[0])
 	if err != nil {
 		return 0, errors.Wrapf(err, "resolve %q", args[0])
 	}

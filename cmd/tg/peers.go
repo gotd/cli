@@ -150,6 +150,22 @@ func builderFor(ctx context.Context, m *peerManager, sender *message.Sender, pee
 	return sender.Resolve(peer), nil
 }
 
+// resolveManagedPeer resolves any <peer> argument — me/self, id:<n>,
+// @username, phone or link — to a typed peer.
+func resolveManagedPeer(ctx context.Context, m *peerManager, arg string) (peers.Peer, error) {
+	if isSelf(arg) {
+		self, err := m.Self(ctx)
+		if err != nil {
+			return nil, errors.Wrap(err, "resolve self")
+		}
+		return self, nil
+	}
+	if isIDArg(arg) {
+		return m.resolveID(ctx, arg)
+	}
+	return m.Resolve(ctx, arg)
+}
+
 // resolvePeer turns a peer string into an InputPeer using the cached manager.
 // The empty string, "me" and "self" resolve to the current account; an "id:<n>"
 // argument resolves a cached peer by numeric id.
