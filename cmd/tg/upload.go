@@ -224,6 +224,20 @@ func (a *app) uploadOne(
 	return msgID, nil
 }
 
+// walkFiles calls fn for each regular file under root, or for root itself when
+// it is a file.
+func walkFiles(root string, fn func(path string, info fs.FileInfo) error) error {
+	return filepath.Walk(root, func(path string, info fs.FileInfo, err error) error {
+		if err != nil {
+			return err // info is nil here
+		}
+		if info.IsDir() {
+			return nil
+		}
+		return fn(path, info)
+	})
+}
+
 func (a *app) newUploadCmd() *cobra.Command {
 	uf := &uploadFlags{docType: newEnumValue("", documentTypes()...)}
 
@@ -247,6 +261,10 @@ The document type is detected from the file's MIME type unless --type is set.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			arg := args[0]
+			// Fail before connecting when there is nothing to upload.
+			if _, err := os.Stat(arg); err != nil {
+				return errors.Wrap(err, "upload")
+			}
 
 			return a.run(cmd.Context(), runParams{auth: authUser}, func(ctx context.Context, api *tg.Client) error {
 				upld := uploader.NewUploader(api).
@@ -265,11 +283,7 @@ The document type is detected from the file's MIME type unless --type is set.`,
 				quiet := a.printer.Format() == output.JSON
 
 				var result uploadResult
-				if err := filepath.Walk(arg, func(path string, info fs.FileInfo, err error) error {
-					// Stop if got error, skip if current file is directory.
-					if info.IsDir() || err != nil {
-						return err
-					}
+				if err := walkFiles(arg, func(path string, info fs.FileInfo) error {
 					id, err := a.uploadOne(ctx, uf, upld, builder, path, info, quiet)
 					if err != nil {
 						return err
