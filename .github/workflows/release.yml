@@ -47,7 +47,9 @@ jobs:
         with:
           distribution: goreleaser
           version: '~> v2'
-          args: release --clean
+          # Compiling gotd/td peaks near 5 GB per target; the default of one
+          # build per CPU (4) runs the 16 GB runner out of memory.
+          args: release --clean --parallelism 2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Built-in app credentials injected into the binaries via -ldflags.
