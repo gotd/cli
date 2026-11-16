@@ -62,12 +62,18 @@ homebrew_casks:
     description: Telegram CLI for humans and agents
     hooks:
       post:
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/tg"]
+        # install_steps needs GoReleaser v2.19+; the older `install` hook
+        # renders the `postflight` stanza that Homebrew 7 deprecates.
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/tg"]
           end
+    # Pushed over SSH with a write deploy key that is scoped to the tap
+    # repository only (GITHUB_TOKEN cannot write to another repository).
     repository:
       owner: gotd
       name: homebrew-tap
       branch: main
-      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+      git:
+        url: git@github.com:gotd/homebrew-tap.git
+        private_key: "{{ .Env.HOMEBREW_TAP_DEPLOY_KEY }}"
