@@ -47,8 +47,8 @@ github.com/gotd/log/logzap v0.1.1 h1:O6l7d8HUbODe+UMcrM47eXYDwdJ6RNmpQejLjrlcEIQ
 github.com/gotd/log/logzap v0.1.1/go.mod h1:5ObZkITbfhbsBOLzBkzmMk9QxXc0eNQpimau7zRL+Y8=
 github.com/gotd/neo v0.1.5 h1:oj0iQfMbGClP8xI59x7fE/uHoTJD7NZH9oV1WNuPukQ=
 github.com/gotd/neo v0.1.5/go.mod h1:9A2a4bn9zL6FADufBdt7tZt+WMhvZoc5gWXihOPoiBQ=
-github.com/gotd/td v0.166.0 h1:OpuR3aPjL8Bj9j4ml0X+qEqQ3F2AKeOa1ncob/knja4=
-github.com/gotd/td v0.166.0/go.mod h1:xgupNQDBWV7bpafHU9giIGTIxguUDwZmQHNHoUEpaOY=
+github.com/gotd/td v0.166.1 h1:4p8yrlXJ85IBxwGFrjWXE24rU1jT4V/BxuEm1PMLo6E=
+github.com/gotd/td v0.166.1/go.mod h1:xgupNQDBWV7bpafHU9giIGTIxguUDwZmQHNHoUEpaOY=
 github.com/inconshreveable/mousetrap v1.1.0 h1:wN+x4NVGpMsO7ErUn/mUI3vEoE6Jt13X2s0bqwp9tc8=
 github.com/inconshreveable/mousetrap v1.1.0/go.mod h1:vpF70FUmC8bwa3OWnCshd2FqLfsEA9PFc4w1p2J65bw=
 github.com/klauspost/compress v1.19.2 h1:hMRETovs/pu/dVWN7zIT1PGG8t509MwT6bO7XSi26R8=
