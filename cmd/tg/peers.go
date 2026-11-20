@@ -33,14 +33,23 @@ type peerManager struct {
 // (user/chat/channel) comes from the peer cache; an unseen id is an error that
 // points the user at `tg chats list`.
 func (m *peerManager) resolveID(ctx context.Context, arg string) (peers.Peer, error) {
-	raw := strings.TrimSpace(strings.TrimPrefix(arg, peerIDPrefix))
+	return m.resolveCachedID(ctx, arg, false)
+}
+
+// Mutating commands can require an unambiguous destination: a raw MTProto ID
+// can be shared by peers of different kinds.
+func (m *peerManager) resolveCachedID(ctx context.Context, arg string, requireUnique bool) (peers.Peer, error) {
+	raw := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(arg), peerIDPrefix))
 	id, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil {
 		return nil, errors.Wrapf(err, "invalid peer id %q", raw)
 	}
-	kind, ok := m.store.Kind(id)
-	if !ok {
+	kind, count := m.store.Kind(id)
+	if count == 0 {
 		return nil, errors.Errorf("peer id %d not in cache; run `tg chats list` (or `tg contacts list`) first so its access hash is stored", id)
+	}
+	if requireUnique && count > 1 {
+		return nil, errors.Errorf("peer id %d is ambiguous in the cache; use a username or public link if available", id)
 	}
 	switch kind {
 	case peercache.KindUser:
