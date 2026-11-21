@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
 
+	"github.com/gotd/td/bin"
 	"github.com/gotd/td/tg"
 )
 
@@ -80,5 +82,43 @@ func TestResolveOutPath(t *testing.T) {
 	dir := t.TempDir()
 	if got := resolveOutPath(dir, "a.bin"); got != filepath.Join(dir, "a.bin") {
 		t.Errorf("dir join = %q", got)
+	}
+}
+
+func TestGetMessageScopedToChat(t *testing.T) {
+	// messages.getMessages is not scoped to a chat: the same id may belong to
+	// another private chat, which must not be returned for this one.
+	api := newFuncAPI(t, func(bin.Encoder) (bin.Encoder, error) {
+		return &tg.MessagesMessages{Messages: []tg.MessageClass{
+			&tg.Message{ID: 5, PeerID: &tg.PeerUser{UserID: 999}},
+		}}, nil
+	})
+	ctx := context.Background()
+	if _, err := getMessage(ctx, api, &tg.InputPeerUser{UserID: 7, AccessHash: 1}, 5); err == nil {
+		t.Error("expected not found for a message from another chat")
+	}
+	if msg, err := getMessage(ctx, api, &tg.InputPeerUser{UserID: 999, AccessHash: 1}, 5); err != nil || msg.ID != 5 {
+		t.Errorf("same chat: %v, %v", msg, err)
+	}
+}
+
+func TestGetMessageSavedMessagesIsolation(t *testing.T) {
+	// For "me", a message id from another private chat must not be returned
+	// as if it were in Saved Messages.
+	users := []tg.UserClass{&tg.User{ID: 42, Self: true}, &tg.User{ID: 999}}
+	respond := func(peerID int64) *tg.Client {
+		return newFuncAPI(t, func(bin.Encoder) (bin.Encoder, error) {
+			return &tg.MessagesMessages{
+				Messages: []tg.MessageClass{&tg.Message{ID: 5, PeerID: &tg.PeerUser{UserID: peerID}}},
+				Users:    users,
+			}, nil
+		})
+	}
+	ctx := context.Background()
+	if _, err := getMessage(ctx, respond(999), &tg.InputPeerSelf{}, 5); err == nil {
+		t.Error("a message from another private chat must not be returned for me")
+	}
+	if msg, err := getMessage(ctx, respond(42), &tg.InputPeerSelf{}, 5); err != nil || msg.ID != 5 {
+		t.Errorf("saved message: %v, %v", msg, err)
 	}
 }
