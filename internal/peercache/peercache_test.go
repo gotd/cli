@@ -69,23 +69,23 @@ func TestKind(t *testing.T) {
 	save("users_", 42, 111)
 	save("channel_", 7, 222)
 	save("chats_", 9, 0) // basic groups have no access hash
+	save("chats_", 7, 0)
 
 	cases := []struct {
-		id   int64
-		want string
+		id    int64
+		want  string
+		count int
 	}{
-		{42, KindUser},
-		{7, KindChannel},
-		{9, KindChat},
+		{42, KindUser, 1},
+		{7, KindChannel, 2},
+		{9, KindChat, 1},
+		{99999, "", 0},
 	}
 	for _, c := range cases {
-		got, ok := s.Kind(c.id)
-		if !ok || got != c.want {
-			t.Errorf("Kind(%d) = %q, %v; want %q", c.id, got, ok, c.want)
+		got, count := s.Kind(c.id)
+		if count != c.count || got != c.want {
+			t.Errorf("Kind(%d) = %q, %d; want %q, %d", c.id, got, count, c.want, c.count)
 		}
-	}
-	if got, ok := s.Kind(99999); ok {
-		t.Errorf("Kind(99999) = %q, %v; want not found", got, ok)
 	}
 }
 

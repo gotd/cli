@@ -126,8 +126,11 @@ func (a *app) newCreateChannelCmd() *cobra.Command {
 
 func (a *app) newInviteCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:               "invite <peer> <user>...",
-		Short:             "Invite users to a group or channel",
+		Use:     "invite <peer> <user>...",
+		Short:   "Invite users to a group or channel",
+		Example: "  tg invite id:123456 @example_user",
+		Long: "Invite users to a group or channel. For a private group without a username, " +
+			"run 'tg chats list --output json' and use its cached raw peer ID as id:<n>.",
 		GroupID:           groupChats,
 		Args:              cobra.MinimumNArgs(2),
 		ValidArgsFunction: peerArgCompletion,
@@ -137,41 +140,60 @@ func (a *app) newInviteCmd() *cobra.Command {
 				if err != nil {
 					return err
 				}
-				users, err := resolveUsers(ctx, m, args[1:])
-				if err != nil {
+				if err := runInvite(ctx, api, m, args[0], args[1:]); err != nil {
 					return err
-				}
-				peerObj, err := m.Resolve(ctx, args[0])
-				if err != nil {
-					return errors.Wrapf(err, "resolve %q", args[0])
-				}
-
-				switch v := peerObj.(type) {
-				case peers.Channel:
-					_, err = api.ChannelsInviteToChannel(ctx, &tg.ChannelsInviteToChannelRequest{
-						Channel: v.InputChannel(),
-						Users:   users,
-					})
-				case peers.Chat:
-					for _, u := range users {
-						if _, err = api.MessagesAddChatUser(ctx, &tg.MessagesAddChatUserRequest{
-							ChatID: v.ID(),
-							UserID: u,
-						}); err != nil {
-							break
-						}
-					}
-				default:
-					return errors.New("peer is not a group or channel")
-				}
-				if err != nil {
-					return errors.Wrap(err, "invite")
 				}
 				return a.printer.Emit(okResult{OK: true})
 			})
 		},
 	}
 	return cmd
+}
+
+func runInvite(ctx context.Context, api *tg.Client, m *peerManager, target string, userArgs []string) error {
+	users, err := resolveUsers(ctx, m, userArgs)
+	if err != nil {
+		return err
+	}
+	var peerObj peers.Peer
+	if isIDArg(target) {
+		peerObj, err = m.resolveCachedID(ctx, target, true)
+	} else {
+		peerObj, err = m.Resolve(ctx, target)
+	}
+	if err != nil {
+		return errors.Wrapf(err, "resolve %q", target)
+	}
+
+	missing := 0
+	switch v := peerObj.(type) {
+	case peers.Channel:
+		res, err := api.ChannelsInviteToChannel(ctx, &tg.ChannelsInviteToChannelRequest{
+			Channel: v.InputChannel(),
+			Users:   users,
+		})
+		if err != nil {
+			return errors.Wrap(err, "invite")
+		}
+		missing = len(res.MissingInvitees)
+	case peers.Chat:
+		for _, u := range users {
+			res, err := api.MessagesAddChatUser(ctx, &tg.MessagesAddChatUserRequest{
+				ChatID: v.ID(),
+				UserID: u,
+			})
+			if err != nil {
+				return errors.Wrap(err, "invite")
+			}
+			missing += len(res.MissingInvitees)
+		}
+	default:
+		return errors.New("peer is not a group or channel")
+	}
+	if missing != 0 {
+		return errors.Errorf("invite: Telegram did not invite %d user(s) out of %d", missing, len(users))
+	}
+	return nil
 }
 
 func (a *app) newLeaveCmd() *cobra.Command {

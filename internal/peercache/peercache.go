@@ -107,13 +107,13 @@ const (
 	KindChannel = "channel"
 )
 
-// Kind reports the cached peer kind ("user", "chat" or "channel") for a numeric
-// id, if the peer has been seen before (e.g. via `tg chats list`). Users and
-// channels are checked before chats so a populated access hash wins.
+// Kind reports the preferred cached peer kind and the number of peer kinds
+// that match id. Users and channels are preferred over chats so a populated
+// access hash wins. A count greater than one means the raw ID is ambiguous.
 //
 // gotd's peers.Storage keys entries as "<prefix>:<id>"; the prefixes are
 // unexported there (telegram/peers/storage.go), so we mirror them here.
-func (s *Storage) Kind(id int64) (string, bool) {
+func (s *Storage) Kind(id int64) (kind string, count int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	idStr := strconv.FormatInt(id, 10)
@@ -123,10 +123,13 @@ func (s *Storage) Kind(id int64) (string, bool) {
 		{KindChat, "chats_"},
 	} {
 		if _, ok := s.data.Peers[kp.prefix+":"+idStr]; ok {
-			return kp.kind, true
+			if count == 0 {
+				kind = kp.kind
+			}
+			count++
 		}
 	}
-	return "", false
+	return kind, count
 }
 
 // SavePhone implements peers.Storage.
